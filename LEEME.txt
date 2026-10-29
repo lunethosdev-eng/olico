@@ -1,0 +1,17 @@
+POR QUÉ "APK dañado"
+Los archivos *unsigned*.apk NO se pueden instalar en Android moderno.
+No están corruptos del todo: faltan firma. El instalador dice "paquete no válido".
+
+Este patch:
+1) Firma SIEMPRE el APK en CI (keystore de secrets si sirve; si no, uno temporal válido).
+2) Icono Pokke (disco) en launcher + todas las variantes liquid/samsung/pixel glass.
+
+IMPORTANTE:
+- BORRA si existe: app/src/main/res/drawable/ic_launcher_foreground.xml
+  (vector viejo de BitChord que tapa el logo).
+- Instala el APK **arm64-v8a** en teléfono real (no el universal si falla).
+  Archivo tipo: app-prod-arm64-v8a-release.apk  (~60 MB)
+- Si ya tenías BitChord instalado con otro firma, desinstálala primero
+  (cambio de firma / applicationId).
+
+Copia sobre la raíz del repo olico → push → descarga artifact de nuevo.

@@ -23,49 +23,55 @@ jobs:
         echo "LASTFM_SECRET=${{ secrets.LASTFM_SECRET }}" >> local.properties
         echo "LISTEN_TOGETHER_SERVER=${{ secrets.LISTEN_TOGETHER_SERVER }}" >> local.properties
 
-    - name: Try keystore (optional)
-      id: ks
-      continue-on-error: true
+    - name: Signing keystore (CI)
       run: |
+        # Always create a valid JKS so the APK is installable.
+        # Prefer secrets if they form a readable store; else generate temporary.
+        USE_TEMP=1
         if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > bitchord-release.jks || exit 1
-          # Validate keystore is readable
-          keytool -list -keystore bitchord-release.jks \
-            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" >/dev/null 2>&1 || exit 1
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > bitchord-release.jks || true
+          if keytool -list -keystore bitchord-release.jks \
+              -storepass "${{ secrets.KEYSTORE_PASSWORD }}" >/dev/null 2>&1; then
+            {
+              echo "storeFile=bitchord-release.jks"
+              echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
+              echo "keyAlias=${{ secrets.KEY_ALIAS }}"
+              echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
+            } > keystore.properties
+            USE_TEMP=0
+          fi
+        fi
+        if [ "$USE_TEMP" = "1" ]; then
+          echo "Secrets keystore invalid — generating temporary CI keystore"
+          keytool -genkeypair -v \
+            -keystore pokke-ci.jks \
+            -storepass pokkeci \
+            -keypass pokkeci \
+            -alias pokke \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Pokke CI, OU=Dev, O=Pokke, L=SS, ST=SS, C=SV"
           {
-            echo "storeFile=bitchord-release.jks"
-            echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
-            echo "keyAlias=${{ secrets.KEY_ALIAS }}"
-            echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
+            echo "storeFile=pokke-ci.jks"
+            echo "storePassword=pokkeci"
+            echo "keyAlias=pokke"
+            echo "keyPassword=pokkeci"
           } > keystore.properties
-          echo "valid=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "valid=false" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Grant gradlew
       run: chmod +x gradlew
 
-    # Phone only — skip wear packaging (was blocking / missing module pain)
-    - name: Build phone APK
-      run: |
-        if [ "${{ steps.ks.outputs.valid }}" = "true" ]; then
-          ./gradlew :app:assembleProdRelease --no-daemon
-        else
-          echo "Keystore missing/invalid — building unsigned/debug-style release without signing config"
-          rm -f keystore.properties bitchord-release.jks
-          ./gradlew :app:assembleProdRelease --no-daemon
-        fi
+    - name: Build phone APK (prod release, signed)
+      run: ./gradlew :app:assembleProdRelease --no-daemon
 
     - name: Upload phone APK
       uses: actions/upload-artifact@v4
       with:
         name: pokke-prod-release
-        path: |
-          app/build/outputs/apk/prod/release/*.apk
-        if-no-files-found: warn
+        path: app/build/outputs/apk/prod/release/*.apk
+        if-no-files-found: error
 
-    - name: Build TV APK (optional)
+    - name: Build TV (optional)
       continue-on-error: true
       run: ./gradlew :tv:assembleProdRelease --no-daemon || true
 
