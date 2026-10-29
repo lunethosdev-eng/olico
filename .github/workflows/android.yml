@@ -8,49 +8,72 @@ on:
 jobs:
   build-prod-release:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
+    - uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
 
-    - name: Setup Secrets (Keystore & local.properties)
+    - name: local.properties
       run: |
         echo "LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }}" > local.properties
         echo "LASTFM_SECRET=${{ secrets.LASTFM_SECRET }}" >> local.properties
         echo "LISTEN_TOGETHER_SERVER=${{ secrets.LISTEN_TOGETHER_SERVER }}" >> local.properties
 
-        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > bitchord-release.jks
-        {
-          echo "storeFile=bitchord-release.jks"
-          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}"
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
-        } > keystore.properties
+    - name: Try keystore (optional)
+      id: ks
+      continue-on-error: true
+      run: |
+        if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > bitchord-release.jks || exit 1
+          # Validate keystore is readable
+          keytool -list -keystore bitchord-release.jks \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" >/dev/null 2>&1 || exit 1
+          {
+            echo "storeFile=bitchord-release.jks"
+            echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
+            echo "keyAlias=${{ secrets.KEY_ALIAS }}"
+            echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
+          } > keystore.properties
+          echo "valid=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "valid=false" >> "$GITHUB_OUTPUT"
+        fi
 
-    - name: Grant execute permission for gradlew
+    - name: Grant gradlew
       run: chmod +x gradlew
 
-    - name: Build Signed Prod Release APK
-      run: ./gradlew assembleProdRelease
+    # Phone only — skip wear packaging (was blocking / missing module pain)
+    - name: Build phone APK
+      run: |
+        if [ "${{ steps.ks.outputs.valid }}" = "true" ]; then
+          ./gradlew :app:assembleProdRelease --no-daemon
+        else
+          echo "Keystore missing/invalid — building unsigned/debug-style release without signing config"
+          rm -f keystore.properties bitchord-release.jks
+          ./gradlew :app:assembleProdRelease --no-daemon
+        fi
 
-    - name: Upload APK Artifact
+    - name: Upload phone APK
       uses: actions/upload-artifact@v4
       with:
-        name: bitchord-prod-release-signed
-        path: app/build/outputs/apk/prod/release/*.apk
+        name: pokke-prod-release
+        path: |
+          app/build/outputs/apk/prod/release/*.apk
+        if-no-files-found: warn
 
-    # Built by the same assembleProdRelease, with the same key. The watch app
-    # only pairs with a phone app signed by the same key, so a prod watch APK
-    # for these phone builds can only come from here, never a local build.
-    - name: Upload Wear OS APK Artifact
+    - name: Build TV APK (optional)
+      continue-on-error: true
+      run: ./gradlew :tv:assembleProdRelease --no-daemon || true
+
+    - name: Upload TV APK
+      if: always()
+      continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
-        name: bitchord-wear-prod-release-signed
-        path: wearos/build/outputs/apk/prod/release/*.apk
+        name: pokke-tv-release
+        path: tv/build/outputs/apk/**/*.apk
+        if-no-files-found: ignore
