@@ -25,8 +25,13 @@ object SilentHarvest {
         synchronized(seen) {
             if (!seen.add(q.lowercase())) return
             if (seen.size > 200) {
-                val it = seen.iterator()
-                repeat(40) { if (it.hasNext()) { it.next(); it.remove() } }
+                val iter = seen.iterator()
+                repeat(40) { _ ->
+                    if (iter.hasNext()) {
+                        iter.next()
+                        iter.remove()
+                    }
+                }
             }
         }
         scope.launch { runCatching { UkiyoApi.search(q) } }
