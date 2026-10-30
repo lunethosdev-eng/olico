@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -30,6 +31,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.music.pokke.data.auth.KokoroAuth
+import com.music.pokke.data.plays.PlayTracker
+import com.music.pokke.data.youtube.YouTubeMusicClient
 import com.music.pokke.data.model.DownloadProgress
 import com.music.pokke.data.model.Song
 import com.music.pokke.data.model.TrendItem
@@ -86,7 +89,11 @@ class MainActivity : ComponentActivity() {
                         return@LaunchedEffect
                     }
                     delay(350)
-                    val found = runCatching { UkiyoApi.search(query) }.getOrDefault(emptyList())
+                    val ukiyoHits = runCatching { UkiyoApi.search(query) }.getOrDefault(emptyList())
+                    val ytHits = if (yt) {
+                        runCatching { YouTubeMusicClient.search(query) }.getOrDefault(emptyList())
+                    } else emptyList()
+                    val found = (ukiyoHits + ytHits).distinctBy { it.youtubeId ?: it.id }
                     results = found
                     if (!yt && found.isEmpty()) {
                         var n = 0
@@ -108,6 +115,8 @@ class MainActivity : ComponentActivity() {
                 }
 
                 fun play(song: Song) {
+                    if (song.source == "youtube") YouTubeMusicClient.noteListen(song)
+                    PlayTracker.record(song)
                     PlayerController.play(this@MainActivity, song, recent)
                     nav.navigate("player")
                 }
