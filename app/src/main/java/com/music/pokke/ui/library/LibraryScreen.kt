@@ -27,9 +27,9 @@ fun LibraryScreen(
             .padding(contentPadding)
             .padding(16.dp),
     ) {
-        Text("Library", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+        Text("Biblioteca", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
         Text(
-            "Liked & offline come in a later build",
+            "Tus canciones y descargas",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
