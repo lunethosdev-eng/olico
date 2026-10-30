@@ -40,6 +40,7 @@ import com.music.pokke.data.auth.KokoroAuth
 import com.music.pokke.data.plays.PlayTracker
 import com.music.pokke.data.plays.TrendsRepository
 import com.music.pokke.data.youtube.YouTubeMusicClient
+import com.music.pokke.data.youtube.YtStreamResolver
 import com.music.pokke.data.model.DownloadProgress
 import com.music.pokke.data.model.Song
 import com.music.pokke.data.model.TrendItem
@@ -134,11 +135,19 @@ class MainActivity : ComponentActivity() {
                     kotlinx.coroutines.MainScope().launch {
                         var toPlay = song
                         if (toPlay.audioUrl.isNullOrBlank()) {
-                            val q = song.title + " " + song.artist
-                            val hit = runCatching {
-                                UkiyoApi.search(q).firstOrNull { !it.audioUrl.isNullOrBlank() }
-                            }.getOrNull()
-                            if (hit != null) toPlay = hit.copy(title = song.title, artist = song.artist)
+                            val vid = song.youtubeId ?: song.id
+                            val ytUrl = if (song.source == "youtube" || !song.youtubeId.isNullOrBlank()) {
+                                runCatching { YtStreamResolver.audioUrl(vid) }.getOrNull()
+                            } else null
+                            if (!ytUrl.isNullOrBlank()) {
+                                toPlay = toPlay.copy(audioUrl = ytUrl)
+                            } else {
+                                val q = song.title + " " + song.artist
+                                val hit = runCatching {
+                                    UkiyoApi.search(q).firstOrNull { !it.audioUrl.isNullOrBlank() }
+                                }.getOrNull()
+                                if (hit != null) toPlay = hit.copy(title = song.title, artist = song.artist)
+                            }
                         }
                         PlayerController.play(this@MainActivity, toPlay, recent)
                     }
