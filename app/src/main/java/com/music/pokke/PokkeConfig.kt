@@ -22,5 +22,5 @@ object PokkeConfig {
      * Google OAuth Web client ID for Supabase (configure in Google Cloud + Supabase Auth).
      * Leave empty until you paste it — Sign in with Google stays prepared.
      */
-    const val GOOGLE_WEB_CLIENT_ID = ""
+    const val GOOGLE_WEB_CLIENT_ID = "749672765922-vdcee0ha0tsrq00ca2n1733jsn0mucc4.apps.googleusercontent.com"
 }
