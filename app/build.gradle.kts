@@ -64,6 +64,10 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    // YouTube stream resolve (same family as BitChord)
+    implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.24.3")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("androidx.browser:browser:1.8.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
