@@ -25,6 +25,7 @@ fun SettingsScreen(
     isOwner: Boolean,
     onAccount: () -> Unit,
     onAdmin: () -> Unit,
+    onSpotify: () -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(),
 ) {
     val dark by AppSettings.darkTheme.collectAsState()
@@ -65,7 +66,8 @@ fun SettingsScreen(
         Section("Sources")
         Toggle("Ukiyo (Pokke catalog)", "Default source", ukiyo, AppSettings::setUkiyoEnabled)
         Toggle("YouTube Music", "Off by default. Enables Google + catalog + silent harvest", yt, AppSettings::setYoutubeEnabled)
-        Toggle("Spotify", "Playlists / import / canvas (v0.2)", sp, AppSettings::setSpotifyEnabled)
+        Toggle("Spotify", "Playlists via sp_dc (BitChord-style, free account)", sp, AppSettings::setSpotifyEnabled)
+        TextButton(onClick = onSpotify) { Text("Connect Spotify (sp_dc)") }
 
         Section("Social")
         Toggle("Listen Together", "Party mode (v0.2)", party, AppSettings::setListenTogether)
