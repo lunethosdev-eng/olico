@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -42,26 +43,17 @@ fun SearchScreen(
             onValueChange = onQueryChange,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            placeholder = { Text(if (yt) "Search Ukiyo + YouTube" else "Search Pokke / Ukiyo") },
+            shape = RoundedCornerShape(16.dp),
+            placeholder = { Text("Search") },
         )
-        if (!yt) {
-            Text(
-                "YouTube is off. Missing tracks go to Ukiyo /api/search (progress below).",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        } else {
-            Text(
-                "YouTube on — listens harvest silently into Ukiyo.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
         progress?.let {
-            Text("Downloading ${it.percent}% ${it.stage}", modifier = Modifier.padding(top = 12.dp))
-            LinearProgressIndicator(progress = { it.percent / 100f }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+            if (!yt) {
+                Text("${it.percent}% ${it.stage}", modifier = Modifier.padding(top = 12.dp), style = MaterialTheme.typography.bodySmall)
+                LinearProgressIndicator(
+                    progress = { it.percent / 100f },
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                )
+            }
         }
         LazyColumn(Modifier.padding(top = 12.dp)) {
             items(results, key = { it.id }) { SongRow(it) { onPlay(it) } }
