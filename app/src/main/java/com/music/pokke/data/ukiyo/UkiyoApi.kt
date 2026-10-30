@@ -1,5 +1,6 @@
 package com.music.pokke.data.ukiyo
 
+import com.music.pokke.PokkeConfig
 import com.music.pokke.data.model.DownloadProgress
 import com.music.pokke.data.model.Song
 import com.music.pokke.data.model.TrendItem
@@ -15,43 +16,67 @@ import java.util.concurrent.TimeUnit
 object UkiyoApi {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val http = OkHttpClient.Builder()
-        .connectTimeout(25, TimeUnit.SECONDS)
-        .readTimeout(90, TimeUnit.SECONDS)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    private fun base() = AppSettings.musicApiBase.value.trimEnd('/')
+    private fun gateway() = AppSettings.musicApiBase.value.trimEnd('/')
 
     suspend fun search(query: String): List<Song> = withContext(Dispatchers.IO) {
         val q = java.net.URLEncoder.encode(query, "UTF-8")
-        decodeSongs(get("${base()}/api/search?q=$q"))
+        val viaGw = decodeSongs(get("${gateway()}/api/search?q=$q"))
+        if (viaGw.isNotEmpty()) return@withContext viaGw
+        supabaseSongs(query)
     }
 
     suspend fun recentSongs(): List<Song> = withContext(Dispatchers.IO) {
-        decodeSongs(get("${base()}/api/songs"))
+        val viaGw = decodeSongs(get("${gateway()}/api/songs"))
+        if (viaGw.isNotEmpty()) return@withContext viaGw
+        supabaseSongs(null)
     }
 
     suspend fun progress(id: String): DownloadProgress? = withContext(Dispatchers.IO) {
-        val body = get("${base()}/api/progress?id=${java.net.URLEncoder.encode(id, "UTF-8")}")
+        val body = get("${gateway()}/api/progress?id=${java.net.URLEncoder.encode(id, "UTF-8")}")
         if (body.isBlank()) return@withContext null
         runCatching { json.decodeFromString<ProgressDto>(body).toModel() }.getOrNull()
     }
 
-    /** Trends: tries /api/trends then falls back to recent songs as soft trends. */
     suspend fun trends(): List<TrendItem> = withContext(Dispatchers.IO) {
-        val body = get("${base()}/api/trends")
+        val body = get("${gateway()}/api/trends")
         if (body.isNotBlank()) {
-            runCatching { json.decodeFromString<List<TrendItem>>(body) }.getOrNull()?.let { return@withContext it }
+            runCatching { json.decodeFromString<List<TrendItem>>(body) }.getOrNull()?.let {
+                if (it.isNotEmpty()) return@withContext it
+            }
         }
         recentSongs().map {
-            TrendItem(
-                songId = it.id,
-                title = it.title,
-                artist = it.artist,
-                coverUrl = it.coverUrl,
-                plays = 0,
-                source = it.source,
-            )
+            TrendItem(it.id, it.title, it.artist, it.coverUrl, 0, it.source)
         }
+    }
+
+    private fun supabaseSongs(query: String?): List<Song> {
+        val url = buildString {
+            append(PokkeConfig.UKIYO_SUPABASE_URL)
+            append("/rest/v1/songs?select=id,title,artist,album,audio_url,cover_url,animated_cover_url,duration_seconds,youtube_id")
+            append("&order=created_at.desc&limit=80")
+            if (!query.isNullOrBlank()) {
+                val safe = query.replace(",", " ").take(40)
+                append("&or=(title.ilike.*")
+                append(java.net.URLEncoder.encode(safe, "UTF-8"))
+                append("*,artist.ilike.*")
+                append(java.net.URLEncoder.encode(safe, "UTF-8"))
+                append("*)")
+            }
+        }
+        val req = Request.Builder()
+            .url(url)
+            .header("apikey", PokkeConfig.UKIYO_ANON_KEY)
+            .header("Authorization", "Bearer ${PokkeConfig.UKIYO_ANON_KEY}")
+            .get()
+            .build()
+        val body = runCatching {
+            http.newCall(req).execute().use { r -> if (r.isSuccessful) r.body?.string().orEmpty() else "" }
+        }.getOrDefault("")
+        return decodeSongs(body).map { it.copy(source = "ukiyo") }
     }
 
     private fun get(url: String): String {
@@ -68,7 +93,6 @@ object UkiyoApi {
         return runCatching { json.decodeFromString<List<Song>>(body) }
             .recoverCatching { json.decodeFromString<Wrap>(body).songs }
             .getOrDefault(emptyList())
-            .map { it.copy(source = it.source.ifBlank { "ukiyo" }) }
     }
 
     @Serializable private data class Wrap(val songs: List<Song> = emptyList())
