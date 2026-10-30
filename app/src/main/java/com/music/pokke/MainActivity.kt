@@ -54,6 +54,8 @@ import com.music.pokke.ui.library.LibraryScreen
 import com.music.pokke.ui.lyrics.LyricsParser
 import com.music.pokke.ui.lyrics.LyricsScreen
 import com.music.pokke.ui.player.FullPlayerScreen
+import com.music.pokke.ui.player.PokkeBottomNav
+import com.music.pokke.data.lyrics.LyricsApi
 import com.music.pokke.ui.player.MiniPlayer
 import com.music.pokke.ui.search.SearchScreen
 import com.music.pokke.ui.settings.SettingsScreen
@@ -80,6 +82,8 @@ class MainActivity : ComponentActivity() {
                 val current by PlayerController.current.collectAsState()
                 val playing by PlayerController.playing.collectAsState()
                 val position by PlayerController.positionMs.collectAsState()
+                val duration by PlayerController.durationMs.collectAsState()
+                val volume by PlayerController.volume.collectAsState()
                 val yt by AppSettings.youtubeEnabled.collectAsState()
 
                 LaunchedEffect(Unit) {
@@ -161,51 +165,24 @@ class MainActivity : ComponentActivity() {
 
                 Scaffold(
                     bottomBar = {
-                        if (showBar) {
                             Column {
                                 current?.let { song ->
                                     MiniPlayer(
                                         song = song,
                                         playing = playing,
                                         onToggle = { PlayerController.toggle() },
+                                        onNext = { PlayerController.next() },
                                         onOpen = { nav.navigate("player") },
                                     )
                                 }
-                                NavigationBar(
-                                    modifier = Modifier
-                                        .padding(horizontal = 20.dp, vertical = 10.dp)
-                                        .navigationBarsPadding()
-                                        .clip(RoundedCornerShape(28.dp)),
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (AppSettings.liquidGlass.value) 0.55f else 0.92f),
-                                ) {
-                                    NavigationBarItem(
-                                        selected = route == "home",
-                                        onClick = { nav.navigate("home") },
-                                        icon = { Icon(Icons.Rounded.Home, null) },
-                                        label = { Text("Inicio") },
-                                    )
-                                    NavigationBarItem(
-                                        selected = route == "search",
-                                        onClick = { nav.navigate("search") },
-                                        icon = { Icon(Icons.Rounded.Search, null) },
-                                        label = { Text("Buscar") },
-                                    )
-                                    NavigationBarItem(
-                                        selected = route == "library",
-                                        onClick = { nav.navigate("library") },
-                                        icon = { Icon(Icons.Rounded.LibraryMusic, null) },
-                                        label = { Text("Biblioteca") },
-                                    )
-                                    NavigationBarItem(
-                                        selected = route == "settings",
-                                        onClick = { nav.navigate("settings") },
-                                        icon = { Icon(Icons.Rounded.Settings, null) },
-                                        label = { Text("Ajustes") },
-                                    )
-                                }
+                                PokkeBottomNav(
+                                    route = route,
+                                    onHome = { nav.navigate("home") },
+                                    onLibrary = { nav.navigate("library") },
+                                    onSearch = { nav.navigate("search") },
+                                )
                             }
-                        }
-                    },
+                        },
                 ) { padding ->
                     NavHost(nav, startDestination = "home") {
                         composable("home") {
@@ -233,9 +210,10 @@ class MainActivity : ComponentActivity() {
                                 contentPadding = padding,
                             )
                         }
-                        composable("account") { AccountScreen(padding) }
+                        composable("account") { AccountScreen(onSpotify = { nav.navigate("spotify") }, onOnboarding = { nav.navigate("onboarding") }, contentPadding = padding) }
                         composable("admin") { AdminScreen(padding) }
                         composable("spotify") { SpotifyConnectScreen(padding) }
+                        composable("onboarding") { com.music.pokke.ui.account.OnboardingArtistsScreen(padding) { nav.popBackStack() } }
                         composable("player") {
                             val song = current
                             val q by PlayerController.queue.collectAsState()
@@ -249,12 +227,19 @@ class MainActivity : ComponentActivity() {
                                     queue = q.ifEmpty { listOf(song) },
                                     playing = playing,
                                     positionMs = position,
-                                    durationMs = (song.durationSeconds ?: 0) * 1000L,
+                                    durationMs = if (duration > 0) duration else (song.durationSeconds ?: 0) * 1000L,
+                                    volume = volume,
                                     showQueue = showQueue,
+                                    deviceName = "Este teléfono",
+                                    lyricLine = lyricLine,
                                     onToggle = { PlayerController.toggle() },
                                     onSeek = { PlayerController.seek(it) },
+                                    onVolume = { PlayerController.setVolume(it) },
+                                    onPrev = { PlayerController.previous() },
+                                    onNext = { PlayerController.next() },
                                     onLyrics = { nav.navigate("lyrics") },
                                     onQueueToggle = { showQueue = !showQueue },
+                                    onDevice = { /* audio route sheet next */ },
                                     onClose = { nav.popBackStack() },
                                     onPlayIndex = { i ->
                                         val list = q.ifEmpty { listOf(song) }
