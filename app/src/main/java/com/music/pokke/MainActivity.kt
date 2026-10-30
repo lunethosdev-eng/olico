@@ -5,6 +5,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -14,6 +19,7 @@ import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -139,7 +145,13 @@ class MainActivity : ComponentActivity() {
                                         onOpen = { nav.navigate("player") },
                                     )
                                 }
-                                NavigationBar {
+                                NavigationBar(
+                                    modifier = Modifier
+                                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                                        .navigationBarsPadding()
+                                        .clip(RoundedCornerShape(28.dp)),
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f),
+                                ) {
                                     NavigationBarItem(
                                         selected = route == "home",
                                         onClick = { nav.navigate("home") },
@@ -171,7 +183,14 @@ class MainActivity : ComponentActivity() {
                 ) { padding ->
                     NavHost(nav, startDestination = "home") {
                         composable("home") {
-                            HomeScreen(recent, trends, ::play, padding)
+                            HomeScreen(
+                                recent = recent,
+                                trends = trends,
+                                onPlay = ::play,
+                                onSettings = { nav.navigate("settings") },
+                                onProfile = { nav.navigate("account") },
+                                contentPadding = padding,
+                            )
                         }
                         composable("search") {
                             SearchScreen(query, { query = it }, results, progress, ::play, padding)
