@@ -49,6 +49,7 @@ import com.music.pokke.ui.player.FullPlayerScreen
 import com.music.pokke.ui.player.MiniPlayer
 import com.music.pokke.ui.search.SearchScreen
 import com.music.pokke.ui.settings.SettingsScreen
+import com.music.pokke.ui.settings.SpotifyConnectScreen
 import com.music.pokke.ui.theme.PokkeTheme
 import kotlinx.coroutines.delay
 
@@ -183,11 +184,13 @@ class MainActivity : ComponentActivity() {
                                 isOwner = KokoroAuth.isOwner,
                                 onAccount = { nav.navigate("account") },
                                 onAdmin = { nav.navigate("admin") },
+                                onSpotify = { nav.navigate("spotify") },
                                 contentPadding = padding,
                             )
                         }
                         composable("account") { AccountScreen(padding) }
                         composable("admin") { AdminScreen(padding) }
+                        composable("spotify") { SpotifyConnectScreen(padding) }
                         composable("player") {
                             val song = current
                             if (song == null) {
