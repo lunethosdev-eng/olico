@@ -38,6 +38,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.music.pokke.data.auth.KokoroAuth
 import com.music.pokke.data.plays.PlayTracker
+import com.music.pokke.data.plays.TrendsRepository
 import com.music.pokke.data.youtube.YouTubeMusicClient
 import com.music.pokke.data.model.DownloadProgress
 import com.music.pokke.data.model.Song
@@ -58,6 +59,8 @@ import com.music.pokke.ui.settings.SettingsScreen
 import com.music.pokke.ui.settings.SpotifyConnectScreen
 import com.music.pokke.ui.theme.PokkeTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.MainScope
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,6 +74,7 @@ class MainActivity : ComponentActivity() {
                 var query by remember { mutableStateOf("") }
                 var results by remember { mutableStateOf<List<Song>>(emptyList()) }
                 var progress by remember { mutableStateOf<DownloadProgress?>(null) }
+                var showQueue by remember { mutableStateOf(false) }
 
                 val current by PlayerController.current.collectAsState()
                 val playing by PlayerController.playing.collectAsState()
@@ -79,7 +83,10 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     recent = runCatching { UkiyoApi.recentSongs() }.getOrDefault(emptyList())
-                    trends = runCatching { UkiyoApi.trends() }.getOrDefault(emptyList())
+                    val fromKokoro = runCatching { TrendsRepository.load() }.getOrDefault(emptyList())
+                    trends = fromKokoro.ifEmpty {
+                        runCatching { UkiyoApi.trends() }.getOrDefault(emptyList())
+                    }
                 }
 
                 LaunchedEffect(playing) {
@@ -124,7 +131,17 @@ class MainActivity : ComponentActivity() {
                 fun play(song: Song) {
                     if (song.source == "youtube") YouTubeMusicClient.noteListen(song)
                     PlayTracker.record(song)
-                    PlayerController.play(this@MainActivity, song, recent)
+                    kotlinx.coroutines.MainScope().launch {
+                        var toPlay = song
+                        if (toPlay.audioUrl.isNullOrBlank()) {
+                            val q = song.title + " " + song.artist
+                            val hit = runCatching {
+                                UkiyoApi.search(q).firstOrNull { !it.audioUrl.isNullOrBlank() }
+                            }.getOrNull()
+                            if (hit != null) toPlay = hit.copy(title = song.title, artist = song.artist)
+                        }
+                        PlayerController.play(this@MainActivity, toPlay, recent)
+                    }
                     nav.navigate("player")
                 }
 
@@ -150,31 +167,31 @@ class MainActivity : ComponentActivity() {
                                         .padding(horizontal = 20.dp, vertical = 10.dp)
                                         .navigationBarsPadding()
                                         .clip(RoundedCornerShape(28.dp)),
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f),
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (AppSettings.liquidGlass.value) 0.55f else 0.92f),
                                 ) {
                                     NavigationBarItem(
                                         selected = route == "home",
                                         onClick = { nav.navigate("home") },
                                         icon = { Icon(Icons.Rounded.Home, null) },
-                                        label = { Text("Home") },
+                                        label = { Text("Inicio") },
                                     )
                                     NavigationBarItem(
                                         selected = route == "search",
                                         onClick = { nav.navigate("search") },
                                         icon = { Icon(Icons.Rounded.Search, null) },
-                                        label = { Text("Search") },
+                                        label = { Text("Buscar") },
                                     )
                                     NavigationBarItem(
                                         selected = route == "library",
                                         onClick = { nav.navigate("library") },
                                         icon = { Icon(Icons.Rounded.LibraryMusic, null) },
-                                        label = { Text("Library") },
+                                        label = { Text("Biblioteca") },
                                     )
                                     NavigationBarItem(
                                         selected = route == "settings",
                                         onClick = { nav.navigate("settings") },
                                         icon = { Icon(Icons.Rounded.Settings, null) },
-                                        label = { Text("Settings") },
+                                        label = { Text("Ajustes") },
                                     )
                                 }
                             }
@@ -212,20 +229,28 @@ class MainActivity : ComponentActivity() {
                         composable("spotify") { SpotifyConnectScreen(padding) }
                         composable("player") {
                             val song = current
+                            val q by PlayerController.queue.collectAsState()
                             if (song == null) {
                                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                                    Text("Nothing playing")
+                                    Text("Nada en reproducción")
                                 }
                             } else {
                                 FullPlayerScreen(
                                     song = song,
+                                    queue = q.ifEmpty { listOf(song) },
                                     playing = playing,
                                     positionMs = position,
                                     durationMs = (song.durationSeconds ?: 0) * 1000L,
+                                    showQueue = showQueue,
                                     onToggle = { PlayerController.toggle() },
                                     onSeek = { PlayerController.seek(it) },
                                     onLyrics = { nav.navigate("lyrics") },
-                                    onQueue = { /* v0.2 */ },
+                                    onQueueToggle = { showQueue = !showQueue },
+                                    onClose = { nav.popBackStack() },
+                                    onPlayIndex = { i ->
+                                        val list = q.ifEmpty { listOf(song) }
+                                        list.getOrNull(i)?.let { play(it) }
+                                    },
                                 )
                             }
                         }
