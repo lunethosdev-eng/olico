@@ -53,7 +53,7 @@ fun LyricsScreen(lines: List<LyricLine>, positionMs: Long, modifier: Modifier = 
     }
     if (lines.isEmpty()) {
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No lyrics", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f))
+            Text("Sin letras", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f))
         }
         return
     }
