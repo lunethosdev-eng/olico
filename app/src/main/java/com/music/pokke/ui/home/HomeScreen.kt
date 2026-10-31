@@ -2,24 +2,13 @@ package com.music.pokke.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,11 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.music.pokke.data.model.Song
 import com.music.pokke.data.model.TrendItem
-import com.music.pokke.ui.components.SongRow
 
 @Composable
 fun HomeScreen(
@@ -46,89 +36,101 @@ fun HomeScreen(
     onProfile: () -> Unit,
     contentPadding: PaddingValues = PaddingValues(),
 ) {
+    val mix = (trends.map {
+        Song(id = it.songId, title = it.title, artist = it.artist, coverUrl = it.coverUrl, audioUrl = it.audioUrl)
+    } + recent).distinctBy { it.id }
+
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding() + 12.dp,
-            bottom = contentPadding.calculateBottomPadding() + 100.dp,
+            top = contentPadding.calculateTopPadding() + 16.dp,
+            bottom = contentPadding.calculateBottomPadding() + 110.dp,
             start = 16.dp,
             end = 16.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         item {
             Row(
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(28.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "Home",
+                    "Pokke Home",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f).padding(start = 8.dp),
+                    modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = onSettings) {
-                    Icon(Icons.Rounded.Settings, contentDescription = "Settings")
-                }
-                Box(
-                    Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface)
-                        .clickable(onClick = onProfile),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Rounded.Person, contentDescription = "Profile")
+                    Icon(Icons.Rounded.Settings, "Ajustes", tint = MaterialTheme.colorScheme.onSurface)
                 }
             }
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
         }
+
         if (trends.isNotEmpty()) {
             item {
-                Text("Trending", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(10.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(trends, key = { it.songId + it.title }) { t ->
-                        Column(Modifier.size(width = 130.dp, height = 180.dp)) {
-                            AsyncImage(
-                                model = t.coverUrl,
-                                contentDescription = t.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.size(130.dp).clip(RoundedCornerShape(12.dp)),
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(t.title, maxLines = 1, fontWeight = FontWeight.Medium)
-                            Text(
-                                t.artist,
-                                maxLines = 1,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            )
-                        }
+                SectionTitle("Tendencias Globales")
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    items(trends, key = { "t" + it.songId + it.title }) { t ->
+                        CoverCard(
+                            title = t.title,
+                            subtitle = t.artist,
+                            cover = t.coverUrl,
+                            onClick = {
+                                onPlay(Song(id = t.songId, title = t.title, artist = t.artist, coverUrl = t.coverUrl, audioUrl = t.audioUrl))
+                            },
+                        )
                     }
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
             }
         }
-        item {
-            Text("For you", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(8.dp))
-        }
-        items(recent, key = { it.id }) { song ->
-            SongRow(song) { onPlay(song) }
-        }
-        if (recent.isEmpty()) {
+
+        if (recent.isNotEmpty()) {
             item {
-                Text(
-                    "No songs yet.",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                    modifier = Modifier.padding(top = 20.dp),
-                )
+                SectionTitle("Escuchado Recientemente")
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    items(recent.take(20), key = { "r" + it.id }) { s ->
+                        CoverCard(s.title, s.artist, s.coverUrl) { onPlay(s) }
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
             }
         }
+
+        if (mix.isNotEmpty()) {
+            item {
+                SectionTitle("Mix Para Ti")
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    items(mix.take(15), key = { "m" + it.id }) { s ->
+                        CoverCard(s.title, s.artist, s.coverUrl) { onPlay(s) }
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(text, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+}
+
+@Composable
+private fun CoverCard(title: String, subtitle: String, cover: String?, onClick: () -> Unit) {
+    Column(Modifier.width(148.dp).clickable(onClick = onClick)) {
+        AsyncImage(
+            model = cover,
+            contentDescription = title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.size(148.dp).clip(RoundedCornerShape(16.dp)),
+        )
+        Text(title, maxLines = 1, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp), overflow = TextOverflow.Ellipsis)
+        Text(subtitle, maxLines = 1, color = MaterialTheme.colorScheme.onSurface.copy(0.5f), fontSize = 12.sp, overflow = TextOverflow.Ellipsis)
     }
 }
