@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -28,13 +27,11 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
-import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -60,7 +57,6 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.music.pokke.data.model.Song
 import com.music.pokke.ui.glass.LiquidGlassSurface
-import com.music.pokke.ui.glass.glassPill
 
 @Composable
 fun MiniPlayer(
@@ -80,9 +76,7 @@ fun MiniPlayer(
         corner = 22.dp,
     ) {
         Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AsyncImage(
@@ -96,14 +90,10 @@ fun MiniPlayer(
                 Text(song.artist, maxLines = 1, color = Color.White.copy(0.55f), fontSize = 12.sp, overflow = TextOverflow.Ellipsis)
             }
             IconButton(onClick = onToggle) {
-                Icon(
-                    if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    contentDescription = if (playing) "Pause" else "Play",
-                    tint = Color.White,
-                )
+                Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null, tint = Color.White)
             }
             IconButton(onClick = onNext) {
-                Icon(Icons.Rounded.SkipNext, contentDescription = "Next", tint = Color.White)
+                Icon(Icons.Rounded.SkipNext, null, tint = Color.White)
             }
         }
     }
@@ -119,7 +109,6 @@ fun PokkeBottomNav(
     onSearch: () -> Unit,
     onProfile: () -> Unit = {},
 ) {
-    // 3 tabs only: Inicio · Biblioteca · Buscar (no Explorar)
     LiquidGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -163,6 +152,7 @@ private fun NavTab(
     }
 }
 
+/** Signature aligned with MainActivity call site. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FullPlayerScreen(
@@ -184,14 +174,16 @@ fun FullPlayerScreen(
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onLyrics: () -> Unit,
-    onQueue: () -> Unit,
-    onAudio: () -> Unit,
+    onQueueToggle: () -> Unit,
+    onDevice: () -> Unit,
+    onDismissAudio: () -> Unit,
     onMore: () -> Unit,
-    onCloseQueue: () -> Unit,
-    onCloseAudio: () -> Unit,
-    onCloseMore: () -> Unit,
+    onDismissMore: () -> Unit,
     onSleep: (Int?) -> Unit,
     onShareLyrics: () -> Unit = {},
+    liquidGlass: Boolean = false,
+    onClose: () -> Unit = {},
+    onPlayIndex: (Int) -> Unit = {},
 ) {
     val dur = durationMs.coerceAtLeast(1L)
     val progress = (positionMs.toFloat() / dur).coerceIn(0f, 1f)
@@ -220,7 +212,7 @@ fun FullPlayerScreen(
                 "Playing from Pokke",
                 color = Color.White.copy(0.55f),
                 fontSize = 12.sp,
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp),
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp).clickable(onClick = onClose),
             )
             Spacer(Modifier.weight(0.35f))
             Text(song.title, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold, maxLines = 2)
@@ -260,14 +252,11 @@ fun FullPlayerScreen(
                 }
                 IconButton(
                     onClick = onToggle,
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(Color.White),
+                    modifier = Modifier.size(72.dp).clip(CircleShape).background(Color.White),
                 ) {
                     Icon(
                         if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = null,
+                        null,
                         tint = Color.Black,
                         modifier = Modifier.size(40.dp),
                     )
@@ -290,30 +279,25 @@ fun FullPlayerScreen(
                 Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                IconButton(onClick = onLyrics) {
-                    Text("♪", color = Color.White, fontSize = 20.sp)
-                }
-                IconButton(onClick = onAudio) {
-                    Icon(Icons.Rounded.Headset, null, tint = Color.White)
-                }
-                IconButton(onClick = onQueue) {
-                    Icon(Icons.Rounded.QueueMusic, null, tint = Color.White)
-                }
-                IconButton(onClick = onMore) {
-                    Icon(Icons.Rounded.MoreHoriz, null, tint = Color.White)
-                }
+                IconButton(onClick = onLyrics) { Text("♪", color = Color.White, fontSize = 20.sp) }
+                IconButton(onClick = onDevice) { Icon(Icons.Rounded.Headset, null, tint = Color.White) }
+                IconButton(onClick = onQueueToggle) { Icon(Icons.Rounded.QueueMusic, null, tint = Color.White) }
+                IconButton(onClick = onMore) { Icon(Icons.Rounded.MoreHoriz, null, tint = Color.White) }
             }
             Text(deviceName, color = Color.White.copy(0.55f), fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
         }
     }
 
     if (showQueue) {
-        ModalBottomSheet(onDismissRequest = onCloseQueue, sheetState = rememberModalBottomSheetState()) {
+        ModalBottomSheet(onDismissRequest = onQueueToggle, sheetState = rememberModalBottomSheetState()) {
             Text("Cola", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
             LazyColumn {
-                itemsIndexed(queue) { _, s ->
+                itemsIndexed(queue) { index, s ->
                     Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onPlayIndex(index) }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         AsyncImage(s.coverUrl, null, Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
@@ -329,71 +313,30 @@ fun FullPlayerScreen(
     }
 
     if (showAudioSheet) {
-        ModalBottomSheet(onDismissRequest = onCloseAudio, sheetState = rememberModalBottomSheetState()) {
+        ModalBottomSheet(onDismissRequest = onDismissAudio, sheetState = rememberModalBottomSheetState()) {
             Text("Audio output", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
-            AudioRow("This phone", selected = deviceName.contains("teléfono", true) || deviceName.contains("phone", true))
-            AudioRow(deviceName.ifBlank { "Bluetooth" }, selected = true)
-            AudioRow("Cast", selected = false)
-            Spacer(Modifier.height(16.dp))
-            Text("Volumen", modifier = Modifier.padding(horizontal = 16.dp))
+            Text(deviceName, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = Color.White)
             Slider(value = volume, onValueChange = onVolume, modifier = Modifier.padding(horizontal = 16.dp))
-            Text("Audio Pipeline · 16-bit PCM · 48 kHz", color = Color.White.copy(0.45f), fontSize = 12.sp, modifier = Modifier.padding(16.dp))
             Spacer(Modifier.height(24.dp))
         }
     }
 
     if (showMoreMenu) {
-        ModalBottomSheet(onDismissRequest = onCloseMore, sheetState = rememberModalBottomSheetState()) {
+        ModalBottomSheet(onDismissRequest = onDismissMore, sheetState = rememberModalBottomSheetState()) {
             Column(Modifier.padding(16.dp)) {
                 Text("Más", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(12.dp))
-                MoreRow("Compartir letra") { onShareLyrics(); onCloseMore() }
-                MoreRow("Agregar a la cola") { onCloseMore() }
-                MoreRow("Temporizador 15 min") { onSleep(15); onCloseMore() }
-                MoreRow("Temporizador 30 min") { onSleep(30); onCloseMore() }
-                MoreRow("Temporizador off") { onSleep(null); onCloseMore() }
-                if (sleepMinutes != null) {
-                    Text("Sleep: ${sleepMinutes}m", color = Color.White.copy(0.5f), modifier = Modifier.padding(top = 8.dp))
-                }
+                Text("Compartir letra", Modifier.fillMaxWidth().clickable { onShareLyrics(); onDismissMore() }.padding(vertical = 14.dp), color = Color.White, fontSize = 16.sp)
+                Text("Temporizador 15 min", Modifier.fillMaxWidth().clickable { onSleep(15); onDismissMore() }.padding(vertical = 14.dp), color = Color.White, fontSize = 16.sp)
+                Text("Temporizador 30 min", Modifier.fillMaxWidth().clickable { onSleep(30); onDismissMore() }.padding(vertical = 14.dp), color = Color.White, fontSize = 16.sp)
+                Text("Temporizador off", Modifier.fillMaxWidth().clickable { onSleep(null); onDismissMore() }.padding(vertical = 14.dp), color = Color.White, fontSize = 16.sp)
                 Spacer(Modifier.height(24.dp))
             }
         }
     }
 }
 
-@Composable
-private fun AudioRow(title: String, selected: Boolean) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) Color.White.copy(0.1f) else Color.Transparent)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(Icons.Rounded.Headset, null, tint = Color.White)
-        Text(title, Modifier.padding(start = 12.dp).weight(1f), color = Color.White)
-        if (selected) Text("✓", color = Color.White)
-    }
-}
-
-@Composable
-private fun MoreRow(label: String, onClick: () -> Unit) {
-    Text(
-        label,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 14.dp),
-        color = Color.White,
-        fontSize = 16.sp,
-    )
-}
-
 private fun formatMs(ms: Long): String {
     val s = (ms / 1000).toInt()
-    val m = s / 60
-    val r = s % 60
-    return "%d:%02d".format(m, r)
+    return "%d:%02d".format(s / 60, s % 60)
 }
