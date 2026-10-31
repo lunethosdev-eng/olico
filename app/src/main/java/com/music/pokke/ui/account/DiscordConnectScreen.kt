@@ -38,12 +38,17 @@ fun DiscordConnectScreen(contentPadding: PaddingValues = PaddingValues()) {
         Text(
             "App ID: ${PokkeConfig.DISCORD_APPLICATION_ID.ifBlank { "(vacío)" }}",
             style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(vertical = 8.dp),
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        Text(
+            "IMPORTANTE — en Discord Developer Portal → OAuth2 → Redirects agrega exactamente:\n${DiscordPresence.REDIRECT_URI}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(vertical = 10.dp),
         )
         Button(
             onClick = {
-                val url = DiscordPresence.oauthUrl()
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(DiscordPresence.oauthUrl())))
             },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Abrir Discord / autorizar") }
@@ -56,32 +61,20 @@ fun DiscordConnectScreen(contentPadding: PaddingValues = PaddingValues()) {
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
-        Button(
-            onClick = { DiscordPresence.setToken(tokenInput) },
-            modifier = Modifier.padding(top = 8.dp),
-        ) { Text("Guardar token") }
-
+        Button(onClick = { DiscordPresence.setToken(tokenInput) }, modifier = Modifier.padding(top = 8.dp)) {
+            Text("Guardar token")
+        }
         Text(
-            if (savedToken != null) "Token guardado en el teléfono" else "Sin token",
+            if (savedToken != null) "Token guardado" else "Sin token",
             modifier = Modifier.padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+            color = MaterialTheme.colorScheme.onSurface.copy(0.55f),
         )
-
-        Row(
-            Modifier.padding(top = 16.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Row(Modifier.padding(top = 16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Mostrar lo que escucho", fontWeight = FontWeight.SemiBold)
-                Text(
-                    "Presencia (base; RPC completo necesita relay)",
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                Text("Presencia (base)", style = MaterialTheme.typography.bodySmall)
             }
-            Switch(
-                checked = isEnabled,
-                onCheckedChange = { DiscordPresence.setEnabled(it) },
-            )
+            Switch(checked = isEnabled, onCheckedChange = { DiscordPresence.setEnabled(it) })
         }
     }
 }
