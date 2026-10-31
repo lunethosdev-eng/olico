@@ -31,17 +31,28 @@ fun DiscordConnectScreen(contentPadding: PaddingValues = PaddingValues()) {
     var tokenInput by remember { mutableStateOf("") }
     val savedToken by DiscordPresence.token.collectAsState()
     val isEnabled by DiscordPresence.enabled.collectAsState()
+    val status by DiscordPresence.statusText.collectAsState()
+    val last by DiscordPresence.lastSong.collectAsState()
     val context = LocalContext.current
 
     Column(Modifier.padding(contentPadding).padding(16.dp)) {
         Text("Discord", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text(
+            status,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+        )
+        last?.let {
+            Text("Última: ${it.title} · ${it.artist}", style = MaterialTheme.typography.bodySmall)
+        }
         Text(
             "App ID: ${PokkeConfig.DISCORD_APPLICATION_ID.ifBlank { "(vacío)" }}",
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 8.dp),
         )
         Text(
-            "En Discord Developer Portal → OAuth2 → Redirects agrega:\n${DiscordPresence.REDIRECT_URI}",
+            "Redirect (Portal OAuth2):\n${DiscordPresence.REDIRECT_URI}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(vertical = 10.dp),
@@ -63,11 +74,6 @@ fun DiscordConnectScreen(contentPadding: PaddingValues = PaddingValues()) {
         Button(onClick = { DiscordPresence.setToken(tokenInput) }, modifier = Modifier.padding(top = 8.dp)) {
             Text("Guardar token")
         }
-        Text(
-            if (savedToken != null) "Token guardado" else "Sin token",
-            modifier = Modifier.padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.onSurface.copy(0.55f),
-        )
         Row(Modifier.padding(top = 16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Mostrar lo que escucho", fontWeight = FontWeight.SemiBold)
