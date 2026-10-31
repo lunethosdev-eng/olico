@@ -12,15 +12,9 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
@@ -86,9 +80,7 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(Unit) {
                     recent = runCatching { UkiyoApi.recentSongs() }.getOrDefault(emptyList())
                     val fromKokoro = runCatching { TrendsRepository.load() }.getOrDefault(emptyList())
-                    trends = fromKokoro.ifEmpty {
-                        runCatching { UkiyoApi.trends() }.getOrDefault(emptyList())
-                    }
+                    trends = fromKokoro.ifEmpty { runCatching { UkiyoApi.trends() }.getOrDefault(emptyList()) }
                 }
 
                 LaunchedEffect(Unit) {
@@ -102,12 +94,9 @@ class MainActivity : ComponentActivity() {
                     lyricLine = null
                     syncedLyrics = emptyList()
                     val s = current ?: return@LaunchedEffect
-                    val lyr = runCatching {
-                        LyricsApi.fetch(s.title, s.artist, s.durationSeconds)
-                    }.getOrNull()
+                    val lyr = runCatching { LyricsApi.fetch(s.title, s.artist, s.durationSeconds) }.getOrNull()
                     syncedLyrics = lyr?.synced.orEmpty()
-                    lyricLine = syncedLyrics.firstOrNull()?.second
-                        ?: lyr?.plain?.lineSequence()?.firstOrNull()
+                    lyricLine = syncedLyrics.firstOrNull()?.second ?: lyr?.plain?.lineSequence()?.firstOrNull()
                 }
 
                 LaunchedEffect(position, syncedLyrics) {
@@ -124,9 +113,7 @@ class MainActivity : ComponentActivity() {
                     }
                     delay(350)
                     val ukiyoHits = runCatching { UkiyoApi.search(query) }.getOrDefault(emptyList())
-                    val ytHits = if (yt) {
-                        runCatching { YouTubeMusicClient.search(query) }.getOrDefault(emptyList())
-                    } else emptyList()
+                    val ytHits = if (yt) runCatching { YouTubeMusicClient.search(query) }.getOrDefault(emptyList()) else emptyList()
                     results = (ukiyoHits + ytHits).distinctBy { it.youtubeId ?: it.id }
                     progress = null
                 }
@@ -145,9 +132,7 @@ class MainActivity : ComponentActivity() {
                                 toPlay = toPlay.copy(audioUrl = ytUrl)
                             } else {
                                 val q = song.title + " " + song.artist
-                                val hit = runCatching {
-                                    UkiyoApi.search(q).firstOrNull { !it.audioUrl.isNullOrBlank() }
-                                }.getOrNull()
+                                val hit = runCatching { UkiyoApi.search(q).firstOrNull { !it.audioUrl.isNullOrBlank() } }.getOrNull()
                                 if (hit != null) toPlay = hit.copy(title = song.title, artist = song.artist)
                             }
                         }
@@ -182,9 +167,11 @@ class MainActivity : ComponentActivity() {
                                 PokkeBottomNav(
                                     route = route ?: "home",
                                     liquidGlass = glass,
+                                    profileCoverUrl = current?.coverUrl,
                                     onHome = { nav.navigate("home") { launchSingleTop = true } },
                                     onLibrary = { nav.navigate("library") { launchSingleTop = true } },
                                     onSearch = { nav.navigate("search") { launchSingleTop = true } },
+                                    onProfile = { nav.navigate("account") { launchSingleTop = true } }
                                 )
                             }
                         }
