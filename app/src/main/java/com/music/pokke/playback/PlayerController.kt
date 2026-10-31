@@ -175,6 +175,10 @@ object PlayerController {
         play(ctx, prev, q)
     }
 
+    fun applySkipSilence(enabled: Boolean) {
+        runCatching { player?.skipSilenceEnabled = enabled }
+    }
+
     fun pollPosition() {
         val p = player ?: return
         if (p.duration > 0) _durationMs.value = p.duration
