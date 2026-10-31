@@ -52,11 +52,7 @@ fun ShareLyricsScreen(
             .padding(20.dp),
     ) {
         Text("Compartir la letra", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text(
-            "Tarjeta con la portada y la línea elegida.",
-            color = Color.White.copy(0.55f),
-            modifier = Modifier.padding(top = 6.dp, bottom = 16.dp),
-        )
+        Spacer(Modifier.height(12.dp))
         Box(
             Modifier
                 .fillMaxWidth()
