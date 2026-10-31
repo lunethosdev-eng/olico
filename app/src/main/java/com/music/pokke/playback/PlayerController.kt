@@ -8,6 +8,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.music.pokke.data.catalog.SilentHarvest
+import com.music.pokke.data.discord.DiscordPresence
 import com.music.pokke.data.model.Song
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,19 +20,14 @@ object PlayerController {
 
     private val _current = MutableStateFlow<Song?>(null)
     val current: StateFlow<Song?> = _current.asStateFlow()
-
     private val _queue = MutableStateFlow<List<Song>>(emptyList())
     val queue: StateFlow<List<Song>> = _queue.asStateFlow()
-
     private val _playing = MutableStateFlow(false)
     val playing: StateFlow<Boolean> = _playing.asStateFlow()
-
     private val _positionMs = MutableStateFlow(0L)
     val positionMs: StateFlow<Long> = _positionMs.asStateFlow()
-
     private val _durationMs = MutableStateFlow(0L)
     val durationMs: StateFlow<Long> = _durationMs.asStateFlow()
-
     private val _volume = MutableStateFlow(1f)
     val volume: StateFlow<Float> = _volume.asStateFlow()
 
@@ -43,25 +39,46 @@ object PlayerController {
             val p = player ?: return
             if (p.duration > 0) _durationMs.value = p.duration
             _playing.value = p.isPlaying
-            if (playbackState == Player.STATE_ENDED) {
-                next()
-            }
+            if (playbackState == Player.STATE_ENDED) next()
+        }
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            _positionMs.value = 0L
+            val p = player ?: return
+            if (p.duration > 0) _durationMs.value = p.duration
         }
     }
 
     fun ensurePlayer(context: Context): ExoPlayer {
         appContext = context.applicationContext
         player?.let { return it }
-        val p = ExoPlayer.Builder(context.applicationContext).build()
-        bindPlayer(p)
+        val p = ExoPlayer.Builder(context.applicationContext).build().also {
+            it.addListener(listener)
+            it.volume = _volume.value
+        }
+        player = p
         return p
     }
 
     fun bindPlayer(p: ExoPlayer?) {
-        player?.removeListener(listener)
+        if (player === p) return
+        player?.let { old ->
+            if (old !== p) {
+                runCatching {
+                    old.pause()
+                    old.stop()
+                    old.clearMediaItems()
+                    old.removeListener(listener)
+                    if (p != null) old.release()
+                }
+            }
+        }
         player = p
-        p?.addListener(listener)
-        _playing.value = p?.isPlaying == true
+        if (p != null) {
+            p.addListener(listener)
+            _playing.value = p.isPlaying
+        } else {
+            _playing.value = false
+        }
     }
 
     fun play(context: Context, song: Song, queue: List<Song> = emptyList()) {
@@ -76,13 +93,20 @@ object PlayerController {
             )
         }
         val p = ensurePlayer(context)
+        runCatching {
+            p.playWhenReady = false
+            p.pause()
+            p.stop()
+            p.clearMediaItems()
+        }
         _current.value = song
-        if (queue.isNotEmpty()) {
-            _queue.value = queue
-        } else {
-            val q = _queue.value.toMutableList()
-            if (q.none { it.id == song.id }) q.add(0, song)
-            _queue.value = q
+        _queue.value = when {
+            queue.isNotEmpty() -> queue
+            else -> {
+                val q = _queue.value.toMutableList()
+                if (q.none { it.id == song.id }) q.add(0, song)
+                q
+            }
         }
         val meta = MediaMetadata.Builder()
             .setTitle(song.title)
@@ -97,6 +121,8 @@ object PlayerController {
         p.play()
         _playing.value = true
         _positionMs.value = 0L
+        _durationMs.value = 0L
+        DiscordPresence.updateNowPlaying(song)
     }
 
     fun toggle() {
@@ -112,8 +138,7 @@ object PlayerController {
     }
 
     fun seek(ms: Long) {
-        val p = player ?: return
-        p.seekTo(ms.coerceAtLeast(0L))
+        player?.seekTo(ms.coerceAtLeast(0L))
         _positionMs.value = ms
     }
 
@@ -144,10 +169,7 @@ object PlayerController {
         if (q.isEmpty()) return
         val cur = _current.value ?: return
         val i = q.indexOfFirst { it.id == cur.id }
-        if (i <= 0) {
-            seek(0)
-            return
-        }
+        if (i <= 0) { seek(0); return }
         val prev = q[i - 1]
         if (prev.audioUrl.isNullOrBlank()) return
         play(ctx, prev, q)
@@ -155,8 +177,9 @@ object PlayerController {
 
     fun pollPosition() {
         val p = player ?: return
-        _positionMs.value = p.currentPosition.coerceAtLeast(0L)
         if (p.duration > 0) _durationMs.value = p.duration
-        _playing.value = p.isPlaying
+        _positionMs.value = p.currentPosition.coerceAtLeast(0L)
+        val now = p.isPlaying
+        if (_playing.value != now) _playing.value = now
     }
 }
