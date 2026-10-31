@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 object PlayerController {
     private var player: ExoPlayer? = null
+    private var appContext: Context? = null
 
     private val _current = MutableStateFlow<Song?>(null)
     val current: StateFlow<Song?> = _current.asStateFlow()
@@ -28,9 +29,19 @@ object PlayerController {
     private val _positionMs = MutableStateFlow(0L)
     val positionMs: StateFlow<Long> = _positionMs.asStateFlow()
 
+    private val _durationMs = MutableStateFlow(0L)
+    val durationMs: StateFlow<Long> = _durationMs.asStateFlow()
+
+    private val _volume = MutableStateFlow(1f)
+    val volume: StateFlow<Float> = _volume.asStateFlow()
+
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _playing.value = isPlaying
+        }
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            _durationMs.value = player?.duration?.coerceAtLeast(0L) ?: 0L
+            _playing.value = player?.isPlaying == true
         }
     }
 
@@ -42,7 +53,9 @@ object PlayerController {
     }
 
     fun play(context: Context, song: Song, queue: List<Song> = emptyList()) {
-        val url = song.audioUrl ?: return
+        appContext = context.applicationContext
+        val url = song.audioUrl
+        if (url.isNullOrBlank()) return
         SilentHarvest.enqueue(song.title, song.artist, song.youtubeId)
         ContextCompat.startForegroundService(
             context.applicationContext,
@@ -50,7 +63,9 @@ object PlayerController {
         )
         val p = player ?: ExoPlayer.Builder(context.applicationContext).build().also { bindPlayer(it) }
         _current.value = song
-        if (queue.isNotEmpty()) _queue.value = queue
+        if (queue.isNotEmpty()) _queue.value = queue else if (_queue.value.none { it.id == song.id }) {
+            _queue.value = listOf(song) + _queue.value
+        }
         val meta = MediaMetadata.Builder()
             .setTitle(song.title)
             .setArtist(song.artist)
@@ -60,18 +75,54 @@ object PlayerController {
             MediaItem.Builder().setUri(url).setMediaId(song.id).setMediaMetadata(meta).build(),
         )
         p.prepare()
+        p.playWhenReady = true
         p.play()
+        _playing.value = true
     }
 
     fun toggle() {
-        player?.let { if (it.isPlaying) it.pause() else it.play() }
+        val p = player ?: return
+        if (p.isPlaying) {
+            p.pause()
+            _playing.value = false
+        } else {
+            p.play()
+            _playing.value = true
+        }
     }
 
     fun seek(ms: Long) {
-        player?.seekTo(ms)
+        player?.seekTo(ms.coerceAtLeast(0L))
+        _positionMs.value = ms
+    }
+
+    fun setVolume(v: Float) {
+        val nv = v.coerceIn(0f, 1f)
+        player?.volume = nv
+        _volume.value = nv
+    }
+
+    fun next() {
+        val q = _queue.value
+        val cur = _current.value ?: return
+        val i = q.indexOfFirst { it.id == cur.id }
+        val next = q.getOrNull(i + 1) ?: return
+        appContext?.let { play(it, next, q) }
+    }
+
+    fun previous() {
+        val q = _queue.value
+        val cur = _current.value ?: return
+        val i = q.indexOfFirst { it.id == cur.id }
+        val prev = q.getOrNull(i - 1) ?: return
+        appContext?.let { play(it, prev, q) }
     }
 
     fun pollPosition() {
-        _positionMs.value = player?.currentPosition ?: 0L
+        val p = player ?: return
+        _positionMs.value = p.currentPosition
+        val d = p.duration
+        if (d > 0) _durationMs.value = d
+        _playing.value = p.isPlaying
     }
 }
