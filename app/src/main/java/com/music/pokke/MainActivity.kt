@@ -4,24 +4,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.background
-import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
@@ -37,33 +28,33 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.music.pokke.data.auth.KokoroAuth
-import com.music.pokke.data.plays.PlayTracker
-import com.music.pokke.data.plays.TrendsRepository
-import com.music.pokke.data.youtube.YouTubeMusicClient
-import com.music.pokke.data.youtube.YtStreamResolver
+import com.music.pokke.data.lyrics.LyricsApi
 import com.music.pokke.data.model.DownloadProgress
 import com.music.pokke.data.model.Song
 import com.music.pokke.data.model.TrendItem
+import com.music.pokke.data.plays.PlayTracker
+import com.music.pokke.data.plays.TrendsRepository
 import com.music.pokke.data.settings.AppSettings
 import com.music.pokke.data.ukiyo.UkiyoApi
+import com.music.pokke.data.youtube.YouTubeMusicClient
+import com.music.pokke.data.youtube.YtStreamResolver
 import com.music.pokke.playback.PlayerController
 import com.music.pokke.ui.account.AccountScreen
 import com.music.pokke.ui.account.AdminScreen
+import com.music.pokke.ui.account.OnboardingArtistsScreen
 import com.music.pokke.ui.home.HomeScreen
 import com.music.pokke.ui.library.LibraryScreen
-import com.music.pokke.ui.lyrics.LyricsParser
 import com.music.pokke.ui.lyrics.LyricsScreen
 import com.music.pokke.ui.player.FullPlayerScreen
-import com.music.pokke.ui.player.PokkeBottomNav
-import com.music.pokke.data.lyrics.LyricsApi
 import com.music.pokke.ui.player.MiniPlayer
+import com.music.pokke.ui.player.PokkeBottomNav
 import com.music.pokke.ui.search.SearchScreen
 import com.music.pokke.ui.settings.SettingsScreen
 import com.music.pokke.ui.settings.SpotifyConnectScreen
 import com.music.pokke.ui.theme.PokkeTheme
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.MainScope
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,6 +69,11 @@ class MainActivity : ComponentActivity() {
                 var results by remember { mutableStateOf<List<Song>>(emptyList()) }
                 var progress by remember { mutableStateOf<DownloadProgress?>(null) }
                 var showQueue by remember { mutableStateOf(false) }
+                var lyricLine by remember { mutableStateOf<String?>(null) }
+                var syncedLyrics by remember { mutableStateOf<List<Pair<Long, String>>>(emptyList()) }
+                var showAudioSheet by remember { mutableStateOf(false) }
+                var showMoreMenu by remember { mutableStateOf(false) }
+                var sleepMinutes by remember { mutableStateOf(0) }
 
                 val current by PlayerController.current.collectAsState()
                 val playing by PlayerController.playing.collectAsState()
@@ -85,6 +81,7 @@ class MainActivity : ComponentActivity() {
                 val duration by PlayerController.durationMs.collectAsState()
                 val volume by PlayerController.volume.collectAsState()
                 val yt by AppSettings.youtubeEnabled.collectAsState()
+                val glass by AppSettings.liquidGlass.collectAsState()
 
                 LaunchedEffect(Unit) {
                     recent = runCatching { UkiyoApi.recentSongs() }.getOrDefault(emptyList())
@@ -95,10 +92,28 @@ class MainActivity : ComponentActivity() {
                 }
 
                 LaunchedEffect(playing) {
-                    while (playing) {
+                    while (true) {
                         PlayerController.pollPosition()
                         delay(250)
                     }
+                }
+
+                LaunchedEffect(current?.id) {
+                    lyricLine = null
+                    syncedLyrics = emptyList()
+                    val s = current ?: return@LaunchedEffect
+                    val lyr = runCatching {
+                        LyricsApi.fetch(s.title, s.artist, s.durationSeconds)
+                    }.getOrNull()
+                    syncedLyrics = lyr?.synced.orEmpty()
+                    lyricLine = syncedLyrics.firstOrNull()?.second
+                        ?: lyr?.plain?.lineSequence()?.firstOrNull()
+                }
+
+                LaunchedEffect(position, syncedLyrics) {
+                    if (syncedLyrics.isEmpty()) return@LaunchedEffect
+                    val line = syncedLyrics.lastOrNull { it.first <= position }?.second
+                    if (line != null) lyricLine = line
                 }
 
                 LaunchedEffect(query, yt) {
@@ -112,31 +127,14 @@ class MainActivity : ComponentActivity() {
                     val ytHits = if (yt) {
                         runCatching { YouTubeMusicClient.search(query) }.getOrDefault(emptyList())
                     } else emptyList()
-                    val found = (ukiyoHits + ytHits).distinctBy { it.youtubeId ?: it.id }
-                    results = found
-                    if (!yt && found.isEmpty()) {
-                        var n = 0
-                        while (n < 30) {
-                            val p = runCatching { UkiyoApi.progress(query.trim()) }.getOrNull()
-                            if (p != null) {
-                                progress = p
-                                if (p.done || p.error != null) break
-                            }
-                            delay(500)
-                            n++
-                            results = runCatching { UkiyoApi.search(query) }.getOrDefault(emptyList())
-                            if (results.isNotEmpty()) {
-                                progress = null
-                                break
-                            }
-                        }
-                    } else progress = null
+                    results = (ukiyoHits + ytHits).distinctBy { it.youtubeId ?: it.id }
+                    progress = null
                 }
 
                 fun play(song: Song) {
                     if (song.source == "youtube") YouTubeMusicClient.noteListen(song)
                     PlayTracker.record(song)
-                    kotlinx.coroutines.MainScope().launch {
+                    MainScope().launch {
                         var toPlay = song
                         if (toPlay.audioUrl.isNullOrBlank()) {
                             val vid = song.youtubeId ?: song.id
@@ -160,29 +158,37 @@ class MainActivity : ComponentActivity() {
 
                 val back by nav.currentBackStackEntryAsState()
                 val route = back?.destination?.route
-                val tabs = listOf("home", "search", "library", "settings")
+                val tabs = setOf("home", "search", "library")
                 val showBar = route in tabs
 
                 Scaffold(
                     bottomBar = {
+                        AnimatedVisibility(
+                            visible = showBar,
+                            enter = slideInVertically { it } + fadeIn(),
+                            exit = slideOutVertically { it } + fadeOut(),
+                        ) {
                             Column {
                                 current?.let { song ->
                                     MiniPlayer(
                                         song = song,
                                         playing = playing,
+                                        liquidGlass = glass,
                                         onToggle = { PlayerController.toggle() },
                                         onNext = { PlayerController.next() },
                                         onOpen = { nav.navigate("player") },
                                     )
                                 }
                                 PokkeBottomNav(
-                                    route = route,
-                                    onHome = { nav.navigate("home") },
-                                    onLibrary = { nav.navigate("library") },
-                                    onSearch = { nav.navigate("search") },
+                                    route = route ?: "home",
+                                    liquidGlass = glass,
+                                    onHome = { nav.navigate("home") { launchSingleTop = true } },
+                                    onLibrary = { nav.navigate("library") { launchSingleTop = true } },
+                                    onSearch = { nav.navigate("search") { launchSingleTop = true } },
                                 )
                             }
-                        },
+                        }
+                    },
                 ) { padding ->
                     NavHost(nav, startDestination = "home") {
                         composable("home") {
@@ -210,10 +216,18 @@ class MainActivity : ComponentActivity() {
                                 contentPadding = padding,
                             )
                         }
-                        composable("account") { AccountScreen(onSpotify = { nav.navigate("spotify") }, onOnboarding = { nav.navigate("onboarding") }, contentPadding = padding) }
+                        composable("account") {
+                            AccountScreen(
+                                onSpotify = { nav.navigate("spotify") },
+                                onOnboarding = { nav.navigate("onboarding") },
+                                contentPadding = padding,
+                            )
+                        }
                         composable("admin") { AdminScreen(padding) }
                         composable("spotify") { SpotifyConnectScreen(padding) }
-                        composable("onboarding") { com.music.pokke.ui.account.OnboardingArtistsScreen(padding) { nav.popBackStack() } }
+                        composable("onboarding") {
+                            OnboardingArtistsScreen(padding) { nav.popBackStack() }
+                        }
                         composable("player") {
                             val song = current
                             val q by PlayerController.queue.collectAsState()
@@ -230,8 +244,11 @@ class MainActivity : ComponentActivity() {
                                     durationMs = if (duration > 0) duration else (song.durationSeconds ?: 0) * 1000L,
                                     volume = volume,
                                     showQueue = showQueue,
+                                    showAudioSheet = showAudioSheet,
+                                    showMoreMenu = showMoreMenu,
                                     deviceName = "Este teléfono",
                                     lyricLine = lyricLine,
+                                    sleepMinutes = sleepMinutes,
                                     onToggle = { PlayerController.toggle() },
                                     onSeek = { PlayerController.seek(it) },
                                     onVolume = { PlayerController.setVolume(it) },
@@ -239,7 +256,12 @@ class MainActivity : ComponentActivity() {
                                     onNext = { PlayerController.next() },
                                     onLyrics = { nav.navigate("lyrics") },
                                     onQueueToggle = { showQueue = !showQueue },
-                                    onDevice = { /* audio route sheet next */ },
+                                    onDevice = { showAudioSheet = true },
+                                    onDismissAudio = { showAudioSheet = false },
+                                    onMore = { showMoreMenu = true },
+                                    onDismissMore = { showMoreMenu = false },
+                                    onSleep = { sleepMinutes = it },
+                                    onShareLyrics = { nav.navigate("share_lyrics") },
                                     onClose = { nav.popBackStack() },
                                     onPlayIndex = { i ->
                                         val list = q.ifEmpty { listOf(song) }
@@ -249,8 +271,15 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         composable("lyrics") {
-                            val lines = LyricsParser.parse(current?.syncedLyrics ?: current?.lyrics)
-                            LyricsScreen(lines, position, Modifier.padding(padding))
+                            LyricsScreen(current, position, padding)
+                        }
+                        composable("share_lyrics") {
+                            com.music.pokke.ui.lyrics.ShareLyricsScreen(
+                                song = current,
+                                line = lyricLine,
+                                contentPadding = padding,
+                                onClose = { nav.popBackStack() },
+                            )
                         }
                     }
                 }
