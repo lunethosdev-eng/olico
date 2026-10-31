@@ -37,7 +37,7 @@ fun HomeScreen(
     contentPadding: PaddingValues = PaddingValues(),
 ) {
     val mix = (trends.map {
-        Song(id = it.songId, title = it.title, artist = it.artist, coverUrl = it.coverUrl, audioUrl = it.audioUrl)
+        Song(id = it.songId, title = it.title, artist = it.artist, coverUrl = it.coverUrl, audioUrl = null)
     } + recent).distinctBy { it.id }
 
     LazyColumn(
@@ -81,7 +81,7 @@ fun HomeScreen(
                             subtitle = t.artist,
                             cover = t.coverUrl,
                             onClick = {
-                                onPlay(Song(id = t.songId, title = t.title, artist = t.artist, coverUrl = t.coverUrl, audioUrl = t.audioUrl))
+                                onPlay(Song(id = t.songId, title = t.title, artist = t.artist, coverUrl = t.coverUrl, audioUrl = null))
                             },
                         )
                     }
