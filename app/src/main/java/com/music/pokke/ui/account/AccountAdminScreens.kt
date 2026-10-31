@@ -30,12 +30,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.music.pokke.PokkeConfig
 import com.music.pokke.data.auth.KokoroAuth
+import com.music.pokke.data.auth.GoogleSignInHelper
+import androidx.compose.ui.platform.LocalContext
 import com.music.pokke.data.settings.AppSettings
 import kotlinx.coroutines.launch
 
 @Composable
 fun AccountScreen(
     onSpotify: () -> Unit = {},
+    onDiscord: () -> Unit = {},
     onOnboarding: () -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(),
 ) {
@@ -45,6 +48,7 @@ fun AccountScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var info by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Column(
         Modifier
@@ -89,13 +93,29 @@ fun AccountScreen(
                     },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 ) { Text("Crear cuenta (Sign up)") }
-                Text(
-                    if (KokoroAuth.googleReady()) "Sign in with Google estará activo con Client ID"
-                    else "Sign in with Google · configura GOOGLE_WEB_CLIENT_ID",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(0.45f),
-                    modifier = Modifier.padding(top = 12.dp),
-                )
+                if (KokoroAuth.googleReady()) {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                error = null
+                                GoogleSignInHelper.getIdToken(context)
+                                    .onSuccess { token ->
+                                        KokoroAuth.signInWithGoogleIdToken(token)
+                                            .onFailure { error = it.message }
+                                    }
+                                    .onFailure { error = it.message ?: "Google cancelado" }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    ) { Text("Sign in with Google") }
+                } else {
+                    Text(
+                        "Sign in with Google · falta GOOGLE_WEB_CLIENT_ID",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(0.45f),
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
             }
         }
 
@@ -113,7 +133,16 @@ fun AccountScreen(
 
         Section("PRESENCIA")
         Card {
-            RowItem("Discord", "Muestra lo que escuchas (token / login)")
+            Row(
+                Modifier.fillMaxWidth().clickable(onClick = onDiscord).padding(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Discord", fontWeight = FontWeight.SemiBold)
+                    Text("Muestra lo que escuchas", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(0.5f))
+                }
+                Text(">", color = MaterialTheme.colorScheme.onSurface.copy(0.35f))
+            }
             Text("Conector Discord: presencia enriquecida (scaffold).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(0.45f))
         }
 
@@ -142,6 +171,7 @@ fun OnboardingArtistsScreen(contentPadding: PaddingValues = PaddingValues(), onD
     var q by remember { mutableStateOf("") }
     var artists by remember { mutableStateOf<List<com.music.pokke.data.deezer.DeezerApi.Artist>>(emptyList()) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     Column(Modifier.padding(contentPadding).padding(16.dp)) {
         Text("Artistas favoritos", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Fotos desde Deezer (tu catálogo aún no tiene artistas).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(0.5f))
