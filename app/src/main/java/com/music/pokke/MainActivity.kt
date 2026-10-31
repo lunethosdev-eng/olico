@@ -264,6 +264,7 @@ class MainActivity : ComponentActivity() {
                                     onDismissMore = { showMoreMenu = false },
                                     onSleep = { sleepMinutes = it },
                                     onShareLyrics = { nav.navigate("share_lyrics") },
+                                    liquidGlass = glass,
                                     onClose = { nav.popBackStack() },
                                     onPlayIndex = { i ->
                                         val list = q.ifEmpty { listOf(song) }
@@ -273,7 +274,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         composable("lyrics") {
-                            LyricsScreen(current, position, padding)
+                            LyricsScreen(current, position, padding, onShare = { nav.navigate("share_lyrics") })
                         }
                         composable("share_lyrics") {
                             com.music.pokke.ui.lyrics.ShareLyricsScreen(
