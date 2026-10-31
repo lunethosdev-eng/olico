@@ -63,6 +63,25 @@ object KokoroAuth {
     }
 
     fun googleReady(): Boolean = PokkeConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank()
+
+    /** Exchange Google ID token for Kokoro Supabase session. */
+    suspend fun signInWithGoogleIdToken(idToken: String): Result<Session> = withContext(Dispatchers.IO) {
+        runCatching {
+            val body = """{"provider":"google","id_token":${idToken.q()}}"""
+            val req = Request.Builder()
+                .url("${PokkeConfig.KOKORO_URL}/auth/v1/token?grant_type=id_token")
+                .header("apikey", PokkeConfig.KOKORO_ANON_KEY)
+                .header("Content-Type", "application/json")
+                .post(body.toRequestBody(media))
+                .build()
+            http.newCall(req).execute().use { resp ->
+                val text = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) error(parseError(resp.code, text))
+                toSession(text, "")
+            }
+        }
+    }
+
     fun signOut() { _session.value = null }
 
     private fun toSession(text: String, emailFallback: String): Session {
