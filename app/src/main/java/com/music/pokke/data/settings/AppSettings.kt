@@ -82,7 +82,11 @@ object AppSettings {
     fun setAudioQualityMobile(v: String) { _audioQualityMobile.value = v; putStr("aq_mobile", v) }
     fun setEqualizer(v: Boolean) { _equalizer.value = v; putBool("equalizer", v) }
     fun setCrossfade(v: Boolean) { _crossfade.value = v; putBool("crossfade", v) }
-    fun setSkipSilence(v: Boolean) { _skipSilence.value = v; putBool("skip_silence", v) }
+    fun setSkipSilence(v: Boolean) {
+        _skipSilence.value = v
+        putBool("skip_silence", v)
+        runCatching { com.music.pokke.playback.PlayerController.applySkipSilence(v) }
+    }
     fun setLiquidGlass(v: Boolean) { _liquidGlass.value = v; putBool("liquid_glass", v) }
     fun setAutoAnimatedCovers(v: Boolean) { _autoAnimatedCovers.value = v; putBool("auto_anim_covers", v) }
     fun setUkiyoEnabled(v: Boolean) { _ukiyoEnabled.value = v; putBool("ukiyo", v) }
