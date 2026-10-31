@@ -40,9 +40,21 @@ object PlayerController {
             _playing.value = isPlaying
         }
         override fun onPlaybackStateChanged(playbackState: Int) {
-            _durationMs.value = player?.duration?.coerceAtLeast(0L) ?: 0L
-            _playing.value = player?.isPlaying == true
+            val p = player ?: return
+            if (p.duration > 0) _durationMs.value = p.duration
+            _playing.value = p.isPlaying
+            if (playbackState == Player.STATE_ENDED) {
+                next()
+            }
         }
+    }
+
+    fun ensurePlayer(context: Context): ExoPlayer {
+        appContext = context.applicationContext
+        player?.let { return it }
+        val p = ExoPlayer.Builder(context.applicationContext).build()
+        bindPlayer(p)
+        return p
     }
 
     fun bindPlayer(p: ExoPlayer?) {
@@ -53,18 +65,24 @@ object PlayerController {
     }
 
     fun play(context: Context, song: Song, queue: List<Song> = emptyList()) {
-        appContext = context.applicationContext
         val url = song.audioUrl
         if (url.isNullOrBlank()) return
+        appContext = context.applicationContext
         SilentHarvest.enqueue(song.title, song.artist, song.youtubeId)
-        ContextCompat.startForegroundService(
-            context.applicationContext,
-            Intent(context, PlaybackService::class.java),
-        )
-        val p = player ?: ExoPlayer.Builder(context.applicationContext).build().also { bindPlayer(it) }
+        runCatching {
+            ContextCompat.startForegroundService(
+                context.applicationContext,
+                Intent(context, PlaybackService::class.java),
+            )
+        }
+        val p = ensurePlayer(context)
         _current.value = song
-        if (queue.isNotEmpty()) _queue.value = queue else if (_queue.value.none { it.id == song.id }) {
-            _queue.value = listOf(song) + _queue.value
+        if (queue.isNotEmpty()) {
+            _queue.value = queue
+        } else {
+            val q = _queue.value.toMutableList()
+            if (q.none { it.id == song.id }) q.add(0, song)
+            _queue.value = q
         }
         val meta = MediaMetadata.Builder()
             .setTitle(song.title)
@@ -78,6 +96,7 @@ object PlayerController {
         p.playWhenReady = true
         p.play()
         _playing.value = true
+        _positionMs.value = 0L
     }
 
     fun toggle() {
@@ -86,13 +105,15 @@ object PlayerController {
             p.pause()
             _playing.value = false
         } else {
+            p.playWhenReady = true
             p.play()
             _playing.value = true
         }
     }
 
     fun seek(ms: Long) {
-        player?.seekTo(ms.coerceAtLeast(0L))
+        val p = player ?: return
+        p.seekTo(ms.coerceAtLeast(0L))
         _positionMs.value = ms
     }
 
@@ -103,26 +124,39 @@ object PlayerController {
     }
 
     fun next() {
+        val ctx = appContext ?: return
         val q = _queue.value
-        val cur = _current.value ?: return
-        val i = q.indexOfFirst { it.id == cur.id }
-        val next = q.getOrNull(i + 1) ?: return
-        appContext?.let { play(it, next, q) }
+        if (q.isEmpty()) return
+        val cur = _current.value
+        val i = if (cur == null) -1 else q.indexOfFirst { it.id == cur.id }
+        val nextSong = when {
+            i < 0 -> q.firstOrNull()
+            i + 1 < q.size -> q[i + 1]
+            else -> null
+        } ?: return
+        if (nextSong.audioUrl.isNullOrBlank()) return
+        play(ctx, nextSong, q)
     }
 
     fun previous() {
+        val ctx = appContext ?: return
         val q = _queue.value
+        if (q.isEmpty()) return
         val cur = _current.value ?: return
         val i = q.indexOfFirst { it.id == cur.id }
-        val prev = q.getOrNull(i - 1) ?: return
-        appContext?.let { play(it, prev, q) }
+        if (i <= 0) {
+            seek(0)
+            return
+        }
+        val prev = q[i - 1]
+        if (prev.audioUrl.isNullOrBlank()) return
+        play(ctx, prev, q)
     }
 
     fun pollPosition() {
         val p = player ?: return
-        _positionMs.value = p.currentPosition
-        val d = p.duration
-        if (d > 0) _durationMs.value = d
+        _positionMs.value = p.currentPosition.coerceAtLeast(0L)
+        if (p.duration > 0) _durationMs.value = p.duration
         _playing.value = p.isPlaying
     }
 }
