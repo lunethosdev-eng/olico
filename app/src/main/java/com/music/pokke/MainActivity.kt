@@ -91,10 +91,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                LaunchedEffect(playing) {
+                LaunchedEffect(Unit) {
                     while (true) {
                         PlayerController.pollPosition()
-                        delay(250)
+                        delay(200)
                     }
                 }
 
