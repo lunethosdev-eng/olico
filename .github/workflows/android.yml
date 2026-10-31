@@ -13,6 +13,23 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: gradle
+      - name: Print debug keystore SHA-1 (for Google Cloud Android OAuth)
+        run: |
+          set -e
+          # Default Android debug keystore is created on first assemble; force create
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey \
+              -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null || true
+          fi
+          echo "========== GOOGLE SHA-1 (debug) =========="
+          keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey \
+            -storepass android -keypass android 2>/dev/null | grep -E "SHA1:|SHA-1:" || true
+          echo "Package release: com.music.pokke"
+          echo "Package debug:   com.music.pokke.debug"
+          echo "Add BOTH Android OAuth clients in Google Cloud with this SHA-1"
+          echo "=========================================="
       - name: Wrapper
         run: |
           if [ ! -f gradlew ]; then
