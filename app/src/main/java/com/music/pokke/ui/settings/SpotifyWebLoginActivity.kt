@@ -3,36 +3,56 @@ package com.music.pokke.ui.settings
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.webkit.CookieManager
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import com.music.pokke.data.spotify.SpotifyAuth
 
 /**
- * User logs into open.spotify.com; we read sp_dc from CookieManager (their session only).
- * Never hardcode shared cookies in the APK.
+ * Spotify login in WebView — harvests only THIS device's sp_dc cookie.
  */
 class SpotifyWebLoginActivity : ComponentActivity() {
+    private var saved = false
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val web = WebView(this)
         setContentView(web)
-        CookieManager.getInstance().setAcceptCookie(true)
-        web.settings.javaScriptEnabled = true
+
+        val cm = CookieManager.getInstance()
+        cm.setAcceptCookie(true)
+        cm.setAcceptThirdPartyCookies(web, true)
+
+        web.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            userAgentString = userAgentString.replace("; wv", "")
+        }
+        web.webChromeClient = WebChromeClient()
         web.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                val cookies = CookieManager.getInstance().getCookie("https://open.spotify.com") ?: return
-                val spdc = cookies.split(";")
+                if (saved) return
+                val raw = cm.getCookie("https://open.spotify.com")
+                    ?: cm.getCookie("https://accounts.spotify.com")
+                    ?: return
+                val spdc = raw.split(";")
                     .map { it.trim() }
                     .firstOrNull { it.startsWith("sp_dc=") }
                     ?.substringAfter("sp_dc=")
-                if (!spdc.isNullOrBlank() && spdc.length > 20) {
+                    ?.trim()
+                if (!spdc.isNullOrBlank() && spdc.length > 30) {
                     SpotifyAuth.setSpDc(spdc)
+                    saved = true
+                    Toast.makeText(this@SpotifyWebLoginActivity, "Spotify conectado", Toast.LENGTH_SHORT).show()
                     finish()
                 }
             }
         }
-        web.loadUrl("https://accounts.spotify.com/en/login")
+        // Start at login; after auth Spotify sets cookies on open.spotify.com
+        web.loadUrl("https://accounts.spotify.com/login?continue=https%3A%2F%2Fopen.spotify.com%2F")
     }
 }
