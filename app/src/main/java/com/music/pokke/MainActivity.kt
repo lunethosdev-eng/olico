@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
                 var syncedLyrics by remember { mutableStateOf<List<Pair<Long, String>>>(emptyList()) }
                 var showAudioSheet by remember { mutableStateOf(false) }
                 var showMoreMenu by remember { mutableStateOf(false) }
-                var sleepMinutes by remember { mutableStateOf(0) }
+                var sleepMinutes by remember { mutableStateOf<Int?>(null) }
 
                 val current by PlayerController.current.collectAsState()
                 val playing by PlayerController.playing.collectAsState()
