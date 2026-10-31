@@ -67,6 +67,9 @@ dependencies {
     // YouTube stream resolve (same family as BitChord)
     implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.24.3")
     implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("androidx.browser:browser:1.8.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
