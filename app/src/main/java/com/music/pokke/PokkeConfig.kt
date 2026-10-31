@@ -14,7 +14,7 @@ object PokkeConfig {
     const val OWNER_EMAIL = "lunethos.dev@gmail.com"
 
     const val GOOGLE_WEB_CLIENT_ID =
-        "749672765922-vdcee0ha0tsrq00ca2n1733jsn0mucc4.apps.googleusercontent.com"
+        "749672765922-2ifh2uu9qiv63as6c4edgih48bapda2j.apps.googleusercontent.com"
 
     /** Discord Application ID (Developer Portal). */
     const val DISCORD_APPLICATION_ID = "1565886577434038312"
