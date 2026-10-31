@@ -1,7 +1,10 @@
 package com.music.pokke.ui.account
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -16,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.music.pokke.PokkeConfig
@@ -25,51 +29,52 @@ import com.music.pokke.data.discord.DiscordPresence
 fun DiscordConnectScreen(contentPadding: PaddingValues = PaddingValues()) {
     var token by remember { mutableStateOf("") }
     val saved by DiscordPresence.token.collectAsState()
-    var showNow by remember { mutableStateOf(saved != null) }
+    val enabled by DiscordPresence.enabled.collectAsState()
+    val context = LocalContext.current
 
     Column(Modifier.padding(contentPadding).padding(16.dp)) {
         Text("Discord", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text(
-            "Presencia enriquecida (lo que escuchas en Pokke).",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(0.55f),
-            modifier = Modifier.padding(vertical = 8.dp),
-        )
-        Text(
-            "1. Discord Developer Portal → New Application → copia Application ID\n" +
-                "2. Pégalo en PokkeConfig.DISCORD_APPLICATION_ID\n" +
-                "3. (Opcional) token de bot o login OAuth para RPC completo",
+            "App ID: ${PokkeConfig.DISCORD_APPLICATION_ID.ifBlank { "(vacío)" }}",
             style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
-        Text(
-            "App ID: " + PokkeConfig.DISCORD_APPLICATION_ID.ifBlank { "(vacío — créalo en portal)" },
-            style = MaterialTheme.typography.labelMedium,
-        )
-        OutlinedTextField(
-            value = token,
-            onValueChange = { token = it },
-            label = { Text("Token (opcional / avanzado)") },
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-            singleLine = true,
+            modifier = Modifier.padding(vertical = 8.dp),
         )
         Button(
             onClick = {
-                DiscordPresence.setToken(token)
-                showNow = token.isNotBlank()
+                val url = DiscordPresence.oauthUrl()
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
             },
-            modifier = Modifier.padding(top = 12.dp),
-        ) { Text("Guardar") }
-        Text(
-            if (saved != null) "Conectado (token guardado en dispositivo)" else "Sin conexión",
-            modifier = Modifier.padding(top = 12.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Abrir Discord / autorizar") }
+
+        Text("O pegar token (avanzado)", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 16.dp))
+        OutlinedTextField(
+            value = token,
+            onValueChange = { token = it },
+            label = { Text("Token") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
         )
-        androidx.compose.foundation.layout.Row(Modifier.padding(top = 16.dp)) {
+        Button(
+            onClick = { DiscordPresence.setToken(token) },
+            modifier = Modifier.padding(top = 8.dp),
+        ) { Text("Guardar token") }
+
+        Text(
+            if (saved != null) "Token guardado en el teléfono" else "Sin token",
+            modifier = Modifier.padding(top = 8.dp),
+            color = MaterialTheme.colorScheme.onSurface.copy(0.55f),
+        )
+
+        Row(Modifier.padding(top = 16.dp)) {
             Column(Modifier.weight(1f)) {
                 Text("Mostrar lo que escucho", fontWeight = FontWeight.SemiBold)
-                Text("Requiere Application ID + gateway RPC", style = MaterialTheme.typography.bodySmall)
+                Text("Presencia (base; RPC completo necesita relay)", style = MaterialTheme.typography.bodySmall)
             }
-            Switch(checked = showNow && PokkeConfig.DISCORD_APPLICATION_ID.isNotBlank(), onCheckedChange = { showNow = it })
+            Switch(
+                checked = enabled,
+                onCheckedChange = { DiscordPresence.setEnabled(it) },
+            )
         }
     }
 }
