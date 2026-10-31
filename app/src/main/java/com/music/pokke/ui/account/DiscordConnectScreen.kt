@@ -41,7 +41,7 @@ fun DiscordConnectScreen(contentPadding: PaddingValues = PaddingValues()) {
             modifier = Modifier.padding(top = 8.dp),
         )
         Text(
-            "IMPORTANTE — en Discord Developer Portal → OAuth2 → Redirects agrega exactamente:\n${DiscordPresence.REDIRECT_URI}",
+            "En Discord Developer Portal → OAuth2 → Redirects agrega:\n${DiscordPresence.REDIRECT_URI}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(vertical = 10.dp),
@@ -53,12 +53,11 @@ fun DiscordConnectScreen(contentPadding: PaddingValues = PaddingValues()) {
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Abrir Discord / autorizar") }
 
-        Text("O pegar token (avanzado)", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 16.dp))
         OutlinedTextField(
             value = tokenInput,
             onValueChange = { tokenInput = it },
-            label = { Text("Token") },
-            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Token (opcional)") },
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             singleLine = true,
         )
         Button(onClick = { DiscordPresence.setToken(tokenInput) }, modifier = Modifier.padding(top = 8.dp)) {
@@ -72,7 +71,6 @@ fun DiscordConnectScreen(contentPadding: PaddingValues = PaddingValues()) {
         Row(Modifier.padding(top = 16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Mostrar lo que escucho", fontWeight = FontWeight.SemiBold)
-                Text("Presencia (base)", style = MaterialTheme.typography.bodySmall)
             }
             Switch(checked = isEnabled, onCheckedChange = { DiscordPresence.setEnabled(it) })
         }
