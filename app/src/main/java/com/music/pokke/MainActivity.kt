@@ -219,12 +219,14 @@ class MainActivity : ComponentActivity() {
                         composable("account") {
                             AccountScreen(
                                 onSpotify = { nav.navigate("spotify") },
+                                onDiscord = { nav.navigate("discord") },
                                 onOnboarding = { nav.navigate("onboarding") },
                                 contentPadding = padding,
                             )
                         }
                         composable("admin") { AdminScreen(padding) }
                         composable("spotify") { SpotifyConnectScreen(padding) }
+                        composable("discord") { com.music.pokke.ui.account.DiscordConnectScreen(padding) }
                         composable("onboarding") {
                             OnboardingArtistsScreen(padding) { nav.popBackStack() }
                         }
