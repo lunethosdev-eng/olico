@@ -1,26 +1,17 @@
 package com.music.pokke.ui.settings
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.music.pokke.data.settings.AppSettings
@@ -34,9 +25,6 @@ fun SettingsScreen(
     contentPadding: PaddingValues = PaddingValues(),
 ) {
     val dark by AppSettings.darkTheme.collectAsState()
-    val eq by AppSettings.equalizer.collectAsState()
-    val xf by AppSettings.crossfade.collectAsState()
-    val skip by AppSettings.skipSilence.collectAsState()
     val glass by AppSettings.liquidGlass.collectAsState()
     val anim by AppSettings.autoAnimatedCovers.collectAsState()
     val ukiyo by AppSettings.ukiyoEnabled.collectAsState()
@@ -44,9 +32,6 @@ fun SettingsScreen(
     val sp by AppSettings.spotifyEnabled.collectAsState()
     val party by AppSettings.listenTogether.collectAsState()
     val lyrics by AppSettings.syncedLyrics.collectAsState()
-    val lang by AppSettings.language.collectAsState()
-    val aqW by AppSettings.audioQualityWifi.collectAsState()
-    val aqM by AppSettings.audioQualityMobile.collectAsState()
     val api by AppSettings.musicApiBase.collectAsState()
 
     Column(
@@ -57,56 +42,34 @@ fun SettingsScreen(
             .padding(16.dp),
     ) {
         Text("Ajustes", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-        Text("Personaliza Pokke", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.padding(bottom = 12.dp))
+        Text("Personaliza tu experiencia BitChord", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), modifier = Modifier.padding(bottom = 16.dp))
 
         CardBlock {
-            Section("Apariencia")
-            ToggleRow("Tema oscuro", "Fondo negro / claro", dark, AppSettings::setDarkTheme)
-            ToggleRow("Liquid Glass", "Nav y paneles translúcidos", glass, AppSettings::setLiquidGlass)
-            ToggleRow("Covers animados", "Cuando haya mp4/webm/gif", anim, AppSettings::setAutoAnimatedCovers)
-            Text("Idioma", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
-            Row(Modifier.padding(top = 6.dp)) {
-                listOf("system" to "Sistema", "es" to "ES", "en" to "EN").forEach { (id, label) ->
-                    FilterChip(
-                        selected = lang == id,
-                        onClick = { AppSettings.setLanguage(id) },
-                        label = { Text(label) },
-                        modifier = Modifier.padding(end = 6.dp),
-                    )
-                }
-            }
+            Section("Apariencia & Liquid Glass")
+            ToggleRow3D("Tema Oscuro", "Fondo OLED puro", dark, AppSettings::setDarkTheme)
+            ToggleRow3D("Liquid Glass Real-Time", "Efecto de refracción y desenfoque avanzado", glass, AppSettings::setLiquidGlass)
+            ToggleRow3D("Covers Animados", "Reproduce animaciones en portadas", anim, AppSettings::setAutoAnimatedCovers)
         }
 
         CardBlock {
-            Section("Reproducción")
-            ToggleRow("Ecualizador", "Se aplica en el motor de audio (base)", eq, AppSettings::setEqualizer)
-            ToggleRow("Crossfade", "Transición suave entre pistas", xf, AppSettings::setCrossfade)
-            ToggleRow("Saltar silencios", "Omite huecos en silencio", skip, AppSettings::setSkipSilence)
-            ToggleRow("Letras sincronizadas", "Animación de letras", lyrics, AppSettings::setSyncedLyrics)
-            Text("Calidad Wi‑Fi", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
-            QualityRow(aqW) { AppSettings.setAudioQualityWifi(it) }
-            Text("Calidad datos", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
-            QualityRow(aqM) { AppSettings.setAudioQualityMobile(it) }
+            Section("Fuentes de Audio")
+            ToggleRow3D("Catálogo Pokke", "Servidor principal Ukiyo", ukiyo, AppSettings::setUkiyoEnabled)
+            ToggleRow3D("YouTube Music", "Soporte de streaming secundario", yt, AppSettings::setYoutubeEnabled)
+            ToggleRow3D("Spotify Integration", "Sincronización mediante sp_dc", sp, AppSettings::setSpotifyEnabled)
+            TextButton(onClick = onSpotify) { Text("Configurar Conexión Spotify") }
         }
 
         CardBlock {
-            Section("Fuentes")
-            ToggleRow("Catálogo Pokke", "Servidor de música (Ukiyo)", ukiyo, AppSettings::setUkiyoEnabled)
-            ToggleRow("YouTube Music", "Off por defecto · harvest silencioso", yt, AppSettings::setYoutubeEnabled)
-            ToggleRow("Spotify", "Playlists con sp_dc (cuenta free)", sp, AppSettings::setSpotifyEnabled)
-            TextButton(onClick = onSpotify) { Text("Conectar Spotify (sp_dc)") }
+            Section("Social & Sincronización")
+            ToggleRow3D("Escuchar Juntos", "Modo Party activo", party, AppSettings::setListenTogether)
+            ToggleRow3D("Letras Sincronizadas", "Efecto karaoke dinámico", lyrics, AppSettings::setSyncedLyrics)
         }
 
         CardBlock {
-            Section("Social")
-            ToggleRow("Escuchar juntos", "Modo party", party, AppSettings::setListenTogether)
-        }
-
-        CardBlock {
-            Section("Cuenta")
-            TextButton(onClick = onAccount) { Text("Cuenta / perfil") }
-            if (isOwner) TextButton(onClick = onAdmin) { Text("Admin") }
-            Text("API: $api", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.padding(top = 4.dp))
+            Section("Cuenta & Admin")
+            TextButton(onClick = onAccount) { Text("Gestionar Perfil y Cuenta") }
+            if (isOwner) TextButton(onClick = onAdmin) { Text("Panel de Administrador") }
+            Text("API Base: $api", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.padding(top = 8.dp))
         }
     }
 }
@@ -129,26 +92,21 @@ private fun Section(t: String) {
 }
 
 @Composable
-private fun ToggleRow(title: String, sub: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun ToggleRow3D(title: String, sub: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    // Animación 3D líquida para los toggles
+    val rotY by animateFloatAsState(targetValue = if (checked) 10f else -10f, label = "toggle3d")
     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
             Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
         }
-        Switch(checked = checked, onCheckedChange = onChange)
-    }
-}
-
-@Composable
-private fun QualityRow(current: String, onChange: (String) -> Unit) {
-    Row(Modifier.padding(top = 4.dp, bottom = 4.dp)) {
-        listOf("low" to "Baja", "medium" to "Media", "high" to "Alta").forEach { (id, label) ->
-            FilterChip(
-                selected = current == id,
-                onClick = { onChange(id) },
-                label = { Text(label) },
-                modifier = Modifier.padding(end = 6.dp),
-            )
-        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onChange,
+            modifier = Modifier.graphicsLayer {
+                rotationY = rotY
+                cameraDistance = 12f * density
+            }
+        )
     }
 }
