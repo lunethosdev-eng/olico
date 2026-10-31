@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Icon
@@ -32,7 +33,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -62,79 +66,68 @@ fun LyricsScreen(
     val listState = rememberLazyListState()
     LaunchedEffect(active) {
         if (active >= 0 && lines.isNotEmpty()) {
-            runCatching { listState.animateScrollToItem(index = active, scrollOffset = -120) }
+            runCatching { listState.animateScrollToItem(index = active, scrollOffset = -140) }
         }
     }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .padding(contentPadding),
-    ) {
-        // soft cover wash
-        song?.coverUrl?.let {
-            AsyncImage(
-                model = it,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                alpha = 0.25f,
-            )
-            Box(
-                Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(listOf(Color.Black.copy(0.55f), Color.Black.copy(0.92f))),
-                ),
-            )
+    // Word progress inside active line (between this and next timestamp)
+    val wordFrac = remember(positionMs, active, lines) {
+        if (active < 0 || active >= lines.size) 0f
+        else {
+            val start = lines[active].first
+            val end = lines.getOrNull(active + 1)?.first ?: (start + 4000)
+            val span = (end - start).coerceAtLeast(1L)
+            ((positionMs - start).toFloat() / span).coerceIn(0f, 1f)
         }
+    }
 
+    Box(Modifier.fillMaxSize().background(Color.Black).padding(contentPadding)) {
+        song?.coverUrl?.let {
+            AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(), alpha = 0.28f)
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(0.5f), Color.Black.copy(0.92f)))))
+        }
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             if (song != null) {
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    AsyncImage(
-                        model = song.coverUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),
-                    )
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    AsyncImage(model = song.coverUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)))
                     Column(Modifier.padding(start = 12.dp).weight(1f)) {
                         Text(song.title, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         Text(song.artist, color = Color.White.copy(0.55f), fontSize = 13.sp, maxLines = 1)
                     }
-                    IconButton(onClick = onShare) {
-                        Icon(Icons.Rounded.Share, null, tint = Color.White)
-                    }
+                    IconButton(onClick = onShare) { Icon(Icons.Rounded.Share, null, tint = Color.White) }
                 }
             }
-
             if (lines.isNotEmpty()) {
                 LazyColumn(state = listState, modifier = Modifier.weight(1f)) {
                     itemsIndexed(lines) { i, (_, text) ->
                         val isActive = i == active
-                        val color by animateColorAsState(
-                            if (isActive) Color.White else Color.White.copy(0.28f),
-                            tween(280),
-                            label = "ly",
-                        )
-                        Text(
-                            text,
-                            color = color,
-                            fontSize = if (isActive) 28.sp else 22.sp,
-                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                            lineHeight = if (isActive) 36.sp else 30.sp,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                        )
+                        if (isActive) {
+                            val words = text.split(" ")
+                            val lit = (wordFrac * words.size).toInt().coerceIn(0, words.size)
+                            val annotated = buildAnnotatedString {
+                                words.forEachIndexed { wi, w ->
+                                    withStyle(
+                                        SpanStyle(
+                                            color = if (wi < lit) Color.White else Color.White.copy(0.35f),
+                                            fontWeight = if (wi < lit) FontWeight.Bold else FontWeight.Normal,
+                                        ),
+                                    ) { append(w); if (wi < words.lastIndex) append(" ") }
+                                }
+                            }
+                            Text(annotated, fontSize = 28.sp, lineHeight = 36.sp, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp))
+                        } else {
+                            val color by animateColorAsState(
+                                if (i < active) Color.White.copy(0.22f) else Color.White.copy(0.28f),
+                                tween(250), label = "ly",
+                            )
+                            Text(text, color = color, fontSize = 22.sp, lineHeight = 30.sp, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp))
+                        }
                     }
                 }
                 Text("Letra · lrclib.net", color = Color.White.copy(0.35f), fontSize = 11.sp, modifier = Modifier.padding(bottom = 12.dp))
             } else if (plain.isNotBlank()) {
                 LazyColumn(Modifier.weight(1f)) {
-                    item {
-                        Text(plain, color = Color.White.copy(0.85f), fontSize = 20.sp, lineHeight = 32.sp)
-                    }
+                    item { Text(plain, color = Color.White.copy(0.85f), fontSize = 20.sp, lineHeight = 32.sp) }
                 }
             } else {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
