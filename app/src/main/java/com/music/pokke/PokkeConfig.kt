@@ -19,8 +19,16 @@ object PokkeConfig {
     const val OWNER_EMAIL = "lunethos.dev@gmail.com"
 
     /**
-     * Google OAuth Web client ID for Supabase (configure in Google Cloud + Supabase Auth).
-     * Leave empty until you paste it — Sign in with Google stays prepared.
+     * Google OAuth Web client ID for Supabase Auth + Credential Manager.
+     * Redirect in Google Cloud must include:
+     * https://ajbmpgnzkgtcmulocftd.supabase.co/auth/v1/callback
      */
-    const val GOOGLE_WEB_CLIENT_ID = "749672765922-vdcee0ha0tsrq00ca2n1733jsn0mucc4.apps.googleusercontent.com"
+    const val GOOGLE_WEB_CLIENT_ID =
+        "749672765922-vdcee0ha0tsrq00ca2n1733jsn0mucc4.apps.googleusercontent.com"
+
+    /**
+     * Discord Application Client ID (Developer Portal → Application).
+     * Leave blank until created — presence stays off.
+     */
+    const val DISCORD_APPLICATION_ID = "1565886577434038312"
 }
